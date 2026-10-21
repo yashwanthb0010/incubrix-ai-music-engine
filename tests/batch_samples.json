@@ -1,0 +1,150 @@
+[
+  {
+    "name": "01_normal_45s_acoustic_pop",
+    "payload": {
+      "prompt": "Warm, optimistic acoustic pop with light acoustic guitar and uplifting percussion for a product launch",
+      "duration_s": 45.0,
+      "tempo_bpm": 110,
+      "key": "C major",
+      "seed": 42
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "02_short_5s_audio_logo",
+    "payload": {
+      "prompt": "Crisp, modern 5-second corporate audio logo intro with high-tech chime",
+      "duration_s": 5.0,
+      "tempo_bpm": 120,
+      "seed": 101
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "03_long_300s_ambient_study",
+    "payload": {
+      "prompt": "Deep ambient background music with slow atmospheric pads and calming textures for focused work",
+      "duration_s": 300.0,
+      "tempo_bpm": 80,
+      "seed": 202
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "04_style_cinematic_orchestral",
+    "payload": {
+      "prompt": "Epic cinematic orchestral soundtrack with heavy brass, strings, and building dramatic tension",
+      "duration_s": 30.0,
+      "tempo_bpm": 130,
+      "key": "D minor",
+      "seed": 301
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "05_style_lofi_hiphop",
+    "payload": {
+      "prompt": "Chill lo-fi hip hop study beat with vinyl crackle, warm rhodes keys, and relaxed bassline",
+      "duration_s": 35.0,
+      "tempo_bpm": 85,
+      "key": "Eb major",
+      "seed": 302
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "06_style_cyberpunk_electronic",
+    "payload": {
+      "prompt": "Aggressive dark electronic cyberpunk synthwave with driving analog bassline and 80s drums",
+      "duration_s": 30.0,
+      "tempo_bpm": 128,
+      "key": "F minor",
+      "seed": 303
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "07_style_corporate_tech",
+    "payload": {
+      "prompt": "Clean, minimal corporate tech presentation music with muted electric guitar and subtle pulses",
+      "duration_s": 25.0,
+      "tempo_bpm": 115,
+      "key": "A major",
+      "seed": 304
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "08_style_playful_quirky",
+    "payload": {
+      "prompt": "Playful, quirky background music with pizzicato strings, marimba, and humorous woodwinds",
+      "duration_s": 20.0,
+      "tempo_bpm": 105,
+      "key": "G major",
+      "seed": 305
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "09_vague_or_contradictory_prompt",
+    "payload": {
+      "prompt": "Fast slow loud quiet music that sounds like blue triangles in space",
+      "duration_s": 15.0,
+      "seed": 401
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "10_named_artist_copyright_warning",
+    "payload": {
+      "prompt": "Energetic stadium anthem in the exact style of Taylor Swift and Queen with rock guitar solos",
+      "duration_s": 20.0,
+      "seed": 501
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "11_vocal_request_instrumental_suppression",
+    "payload": {
+      "prompt": "Pop song with catchy female vocals and singing chorus about friendship",
+      "duration_s": 20.0,
+      "seed": 502
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "12_closely_spaced_sections",
+    "payload": {
+      "prompt": "Dynamic electronic track with rapid mood shifts",
+      "duration_s": 25.0,
+      "sections": [
+        {"start_s": 0.0, "mood": "calm start"},
+        {"start_s": 1.5, "mood": "instant drop"},
+        {"start_s": 3.0, "mood": "breakdown"}
+      ],
+      "seed": 601
+    },
+    "expected_http_status": 202
+  },
+  {
+    "name": "13_invalid_section_exceeding_duration_should_fail",
+    "payload": {
+      "prompt": "Pop track with invalid section timestamp",
+      "duration_s": 20.0,
+      "sections": [
+        {"start_s": 0.0, "mood": "intro"},
+        {"start_s": 35.0, "mood": "late outro after track ended"}
+      ]
+    },
+    "expected_http_status": 400
+  },
+  {
+    "name": "14_non_english_multilingual_prompt",
+    "payload": {
+      "prompt": "Musique acoustique chaleureuse et joyeuse pour une vidéo promotionnelle estivale",
+      "duration_s": 20.0,
+      "seed": 701
+    },
+    "expected_http_status": 202
+  }
+]

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IncuBrix AI Background Music Engine — Audio Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 15% 15%, #16192b 0%, #0c0e17 100%);
+      --card-bg: rgba(26, 30, 50, 0.75);
+      --card-border: rgba(130, 110, 255, 0.2);
+      --accent-primary: #7952fc;
+      --accent-secondary: #00e5ff;
+      --accent-glow: rgba(121, 82, 252, 0.4);
+      --text-main: #f0f4fc;
+      --text-muted: #8e9bb5;
+      --success: #00e676;
+      --warning: #ffb300;
+      --danger: #ff5252;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', -apple-system, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.35rem 1rem;
+      background: rgba(121, 82, 252, 0.15);
+      border: 1px solid var(--accent-primary);
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #bfa3ff;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.8rem;
+    }
+
+    h1 {
+      font-size: 2.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 1.25rem;
+      padding: 1.75rem;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ffffff;
+    }
+
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: rgba(14, 17, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 0.75rem;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent-secondary);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+    }
+
+    .row {
+      display: flex;
+      gap: 1rem;
+    }
+    .row > div { flex: 1; }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.5rem;
+    }
+
+    .checkbox-group input {
+      width: auto;
+      cursor: pointer;
+    }
+
+    button.btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, #5125ea 100%);
+      color: #fff;
+      border: none;
+      border-radius: 0.75rem;
+      padding: 0.9rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    button.btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(121, 82, 252, 0.6);
+    }
+
+    button.btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Player and Results */
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-queued { background: rgba(255, 179, 0, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+    .status-running { background: rgba(0, 229, 255, 0.2); color: var(--accent-secondary); border: 1px solid var(--accent-secondary); }
+    .status-succeeded { background: rgba(0, 230, 118, 0.2); color: var(--success); border: 1px solid var(--success); }
+    .status-failed { background: rgba(255, 82, 82, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+      transition: width 0.3s ease;
+    }
+
+    .audio-block {
+      background: rgba(14, 18, 32, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.85rem;
+      padding: 1rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .audio-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .audio-header span {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .audio-header a {
+      color: var(--accent-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    audio {
+      width: 100%;
+      height: 36px;
+      border-radius: 0.5rem;
+    }
+
+    pre.manifest-viewer {
+      background: #090a10;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #9cdcfe;
+      overflow-x: auto;
+      max-height: 280px;
+    }
+
+    .stat-pills {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+
+    .stat-pill {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+    }
+    .stat-pill strong { color: var(--accent-secondary); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">INCUBRIX ENGINEERING ASSESSMENT 1</div>
+      <h1>AI Background Music Engine</h1>
+      <p class="subtitle">Generate high-fidelity instrumental background music with genuine instrument stem separation, section mood transitions, and automatic narration ducking.</p>
+    </header>
+
+    <div class="grid">
+      <!-- Left Column: Input Form -->
+      <div class="card">
+        <div class="card-title">
+          <span>✨</span> Generate New Music Job
+        </div>
+        <form id="musicForm">
+          <div class="form-group">
+            <label for="prompt">Music Prompt *</label>
+            <textarea id="prompt" rows="3" required placeholder="e.g. Warm, optimistic acoustic pop with upbeat acoustic guitars, driving kick, and uplifting finish for a tech product launch"></textarea>
+          </div>
+
+          <div class="row">
+            <div class="form-group">
+              <label for="duration">Duration (Seconds) *</label>
+              <input type="number" id="duration" min="5" max="300" step="0.5" value="45" required>
+            </div>
+            <div class="form-group">
+              <label for="tempo">Tempo (BPM)</label>
+              <input type="number" id="tempo" min="40" max="240" value="112" placeholder="Optional (e.g. 112)">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="form-group">
+              <label for="key">Musical Key</label>
+              <input type="text" id="key" value="C major" placeholder="e.g. C major, A minor">
+            </div>
+            <div class="form-group">
+              <label for="seed">Seed (Reproducibility)</label>
+              <input type="number" id="seed" value="42" placeholder="e.g. 42">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="sections">Section Mood Changes (JSON)</label>
+            <textarea id="sections" rows="3" placeholder='[{"start_s": 0, "mood": "calm intro"}, {"start_s": 12.5, "mood": "energetic build-up"}, {"start_s": 30, "mood": "uplifting finish"}]'>[{"start_s": 0, "mood": "calm intro"}, {"start_s": 12.5, "mood": "energetic build-up"}, {"start_s": 30, "mood": "uplifting finish"}]</textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="narrationUrl">Narration URL (Optional for Ducking)</label>
+            <input type="url" id="narrationUrl" placeholder="https://example.com/narration.wav">
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="loopable">
+            <label for="loopable" style="margin-bottom:0; cursor:pointer;">Generate seamless loopable boundary</label>
+          </div>
+
+          <button type="submit" id="submitBtn" class="btn-primary">
+            <span>🚀</span> Generate Background Music
+          </button>
+        </form>
+      </div>
+
+      <!-- Right Column: Status & Realtime Output -->
+      <div class="card" id="outputCard">
+        <div class="card-title" style="justify-content: space-between;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span>🎧</span> Studio Output & Stems
+          </div>
+          <div id="statusBadge" class="status-badge status-queued" style="display:none;">Queued</div>
+        </div>
+
+        <div id="emptyState" style="text-align:center; padding: 3rem 1rem; color: var(--text-muted);">
+          <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">🎵</div>
+          <p>Submit a request to generate background music, stem separation, and audio quality validation.</p>
+        </div>
+
+        <div id="processingSection" style="display:none;">
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+            <span id="progressText">Processing job...</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-bar-container">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <div id="jobDetails" style="font-size:0.85rem; color:var(--text-muted); font-family: 'JetBrains Mono', monospace;"></div>
+        </div>
+
+        <div id="resultSection" style="display:none; margin-top: 1.5rem;">
+          <div class="stat-pills" id="statPills"></div>
+
+          <!-- Main Mix Audio -->
+          <div class="audio-block">
+            <div class="audio-header">
+              <span>Full Master Mix (WAV & MP3)</span>
+              <a id="mixWavLink" href="#" download>Download WAV</a>
+            </div>
+            <audio id="audioMix" controls></audio>
+          </div>
+
+          <!-- Ducked Mix if available -->
+          <div class="audio-block" id="duckedBlock" style="display:none;">
+            <div class="audio-header">
+              <span>Ducked Mix (Speech Envelope Attenuated)</span>
+              <a id="duckedWavLink" href="#" download>Download Ducked WAV</a>
+            </div>
+            <audio id="audioDucked" controls></audio>
+          </div>
+
+          <!-- Stem Separations -->
+          <h4 style="margin: 1.2rem 0 0.6rem; font-size: 1rem; color: #fff;">Separated Instrument Stems (Genuine Parts):</h4>
+          <div id="stemsContainer"></div>
+
+          <!-- Manifest -->
+          <h4 style="margin: 1.2rem 0 0.6rem; font-size: 1rem; color: #fff;">Music Manifest (JSON):</h4>
+          <pre id="manifestViewer" class="manifest-viewer">Loading manifest...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pollInterval = null;
+
+    document.getElementById('musicForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+
+      // Extract form values
+      const prompt = document.getElementById('prompt').value;
+      const duration_s = parseFloat(document.getElementById('duration').value);
+      const tempo = document.getElementById('tempo').value ? parseInt(document.getElementById('tempo').value) : null;
+      const key = document.getElementById('key').value || null;
+      const seed = document.getElementById('seed').value ? parseInt(document.getElementById('seed').value) : null;
+      const loopable = document.getElementById('loopable').checked;
+      const narration_url = document.getElementById('narrationUrl').value || null;
+
+      let sections = null;
+      try {
+        const secText = document.getElementById('sections').value.trim();
+        if (secText) sections = JSON.parse(secText);
+      } catch (err) {
+        alert("Invalid JSON format in sections field: " + err.message);
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const payload = {
+        prompt,
+        duration_s,
+        tempo_bpm: tempo,
+        key,
+        seed,
+        loopable,
+        narration_url,
+        sections,
+        output: {
+          sample_rate: 48000,
+          target_lufs: -16.0,
+          formats: ["wav", "mp3"]
+        }
+      };
+
+      // UI state
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('processingSection').style.display = 'block';
+      document.getElementById('resultSection').style.display = 'none';
+      const statusBadge = document.getElementById('statusBadge');
+      statusBadge.style.display = 'inline-block';
+      statusBadge.className = 'status-badge status-queued';
+      statusBadge.innerText = 'Queued';
+
+      const idempotencyKey = 'web_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
+      try {
+        const resp = await fetch('/api/v1/music/jobs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.error ? data.error.message : 'Job creation failed');
+        }
+
+        const jobId = data.job_id;
+        document.getElementById('jobDetails').innerText = `Job ID: ${jobId}`;
+
+        // Start polling
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(() => checkJobStatus(jobId, submitBtn), 1000);
+      } catch (err) {
+        alert('Error submitting job: ' + err.message);
+        submitBtn.disabled = false;
+      }
+    });
+
+    async function checkJobStatus(jobId, submitBtn) {
+      try {
+        const res = await fetch(`/api/v1/jobs/${jobId}`);
+        const job = await res.json();
+
+        const badge = document.getElementById('statusBadge');
+        badge.className = `status-badge status-${job.status}`;
+        badge.innerText = job.status.toUpperCase();
+
+        document.getElementById('progressBar').style.width = `${job.progress}%`;
+        document.getElementById('progressPercent').innerText = `${job.progress}%`;
+        document.getElementById('progressText').innerText = `Status: ${job.status.toUpperCase()} (${job.progress}%)`;
+
+        if (job.status === 'succeeded') {
+          clearInterval(pollInterval);
+          submitBtn.disabled = false;
+          showResults(jobId, job);
+        } else if (job.status === 'failed') {
+          clearInterval(pollInterval);
+          submitBtn.disabled = false;
+          alert('Job failed: ' + (job.error ? job.error.message : 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }
+
+    async function showResults(jobId, job) {
+      document.getElementById('resultSection').style.display = 'block';
+
+      // Load Manifest
+      const mRes = await fetch(`/api/v1/jobs/${jobId}/manifest`);
+      if (mRes.ok) {
+        const manifest = await mRes.json();
+        document.getElementById('manifestViewer').innerText = JSON.stringify(manifest, null, 2);
+
+        // Stats pills
+        const qm = manifest.quality_measurements;
+        const sr = manifest.stem_reconstruction;
+        document.getElementById('statPills').innerHTML = `
+          <div class="stat-pill">Duration: <strong>${qm.measured_duration_s}s</strong></div>
+          <div class="stat-pill">Loudness: <strong>${qm.integrated_lufs} LUFS</strong></div>
+          <div class="stat-pill">True Peak: <strong>${qm.true_peak_dbtp} dBTP</strong></div>
+          <div class="stat-pill">Reconstruction SNR: <strong>${sr.reconstruction_snr_db} dB</strong></div>
+          <div class="stat-pill">Stems: <strong>${sr.stem_count} parts</strong></div>
+        `;
+      }
+
+      // Main audio
+      if (job.assets.mix_wav) {
+        const mixUrl = job.assets.mix_wav;
+        document.getElementById('audioMix').src = mixUrl;
+        document.getElementById('mixWavLink').href = mixUrl;
+      }
+
+      // Ducked mix
+      if (job.assets.mix_ducked_wav) {
+        document.getElementById('duckedBlock').style.display = 'block';
+        document.getElementById('audioDucked').src = job.assets.mix_ducked_wav;
+        document.getElementById('duckedWavLink').href = job.assets.mix_ducked_wav;
+      } else {
+        document.getElementById('duckedBlock').style.display = 'none';
+      }
+
+      // Stems
+      const stemsContainer = document.getElementById('stemsContainer');
+      stemsContainer.innerHTML = '';
+      if (job.assets.stems) {
+        for (const [name, url] of Object.entries(job.assets.stems)) {
+          const div = document.createElement('div');
+          div.className = 'audio-block';
+          div.innerHTML = `
+            <div class="audio-header">
+              <span>Stem: ${name.toUpperCase()}</span>
+              <a href="${url}" download>Download ${name}.wav</a>
+            </div>
+            <audio controls src="${url}"></audio>
+          `;
+          stemsContainer.appendChild(div);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

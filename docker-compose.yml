@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: incubrix-music-api
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=incubrix-music-engine
+      - APP_ENV=production
+      - PORT=8000
+      - HOST=0.0.0.0
+      - BASE_URL=http://localhost:8000
+      - MUSIC_PROVIDER=mock
+      - STEM_SEPARATOR=mock
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_DIR=/app/storage_data
+      - S3_ENDPOINT=minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=incubrix-audio
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=sqlite:////app/storage_data/incubrix.db
+      - TARGET_LUFS=-16.0
+      - TARGET_TRUE_PEAK_DBTP=-1.0
+      - DEFAULT_SAMPLE_RATE=48000
+    volumes:
+      - app_storage:/app/storage_data
+    depends_on:
+      - redis
+      - minio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  minio:
+    image: minio/minio:latest
+    container_name: incubrix-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: incubrix-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  app_storage:
+  minio_data:
