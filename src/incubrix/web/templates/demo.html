@@ -181,6 +181,23 @@
       transform: none;
     }
 
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main);
+      padding: 0.35rem 0.65rem;
+      border-radius: 0.5rem;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .preset-btn:hover {
+      background: rgba(121, 82, 252, 0.25);
+      border-color: var(--accent-primary);
+      transform: translateY(-1px);
+    }
+
     /* Player and Results */
     .status-badge {
       display: inline-block;
@@ -288,37 +305,55 @@
         <div class="card-title">
           <span>✨</span> Generate New Music Job
         </div>
+
+        <!-- Quick Style Presets -->
+        <div style="margin-bottom: 1.2rem;">
+          <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Quick Presets (Click to load distinct style):</label>
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            <button type="button" class="preset-btn" onclick="applyPreset('lofi')">☕ Lo-Fi Chill</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('cinematic')">🎬 Cinematic Epic</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('synthwave')">⚡ Cyberpunk 80s</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('sad_piano')">🎹 Sad Piano</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('rock')">🎸 Rock & Metal</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('edm')">💥 Club EDM</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('acoustic')">🌿 Acoustic Folk</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('jazz')">🎷 Smooth Jazz</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('horror')">👻 Dark Horror</button>
+            <button type="button" class="preset-btn" onclick="applyPreset('ambient')">🧘 Zen Ambient</button>
+          </div>
+        </div>
+
         <form id="musicForm">
           <div class="form-group">
             <label for="prompt">Music Prompt *</label>
-            <textarea id="prompt" rows="3" required placeholder="e.g. Warm, optimistic acoustic pop with upbeat acoustic guitars, driving kick, and uplifting finish for a tech product launch"></textarea>
+            <textarea id="prompt" rows="3" required placeholder="e.g. Mellow lo-fi hip hop study beats with warm Rhodes electric piano and gentle vinyl crackle"></textarea>
           </div>
 
           <div class="row">
             <div class="form-group">
               <label for="duration">Duration (Seconds) *</label>
-              <input type="number" id="duration" min="5" max="300" step="0.5" value="45" required>
+              <input type="number" id="duration" min="5" max="300" step="0.5" value="30" required>
             </div>
             <div class="form-group">
               <label for="tempo">Tempo (BPM)</label>
-              <input type="number" id="tempo" min="40" max="240" value="112" placeholder="Optional (e.g. 112)">
+              <input type="number" id="tempo" min="40" max="240" placeholder="Auto-detected from prompt">
             </div>
           </div>
 
           <div class="row">
             <div class="form-group">
               <label for="key">Musical Key</label>
-              <input type="text" id="key" value="C major" placeholder="e.g. C major, A minor">
+              <input type="text" id="key" placeholder="Auto-detected (e.g. D minor)">
             </div>
             <div class="form-group">
               <label for="seed">Seed (Reproducibility)</label>
-              <input type="number" id="seed" value="42" placeholder="e.g. 42">
+              <input type="number" id="seed" placeholder="Auto-seeded from prompt">
             </div>
           </div>
 
           <div class="form-group">
             <label for="sections">Section Mood Changes (JSON)</label>
-            <textarea id="sections" rows="3" placeholder='[{"start_s": 0, "mood": "calm intro"}, {"start_s": 12.5, "mood": "energetic build-up"}, {"start_s": 30, "mood": "uplifting finish"}]'>[{"start_s": 0, "mood": "calm intro"}, {"start_s": 12.5, "mood": "energetic build-up"}, {"start_s": 30, "mood": "uplifting finish"}]</textarea>
+            <textarea id="sections" rows="2" placeholder='Optional: [{"start_s": 0, "mood": "calm intro"}, {"start_s": 15, "mood": "energetic build"}]'></textarea>
           </div>
 
           <div class="form-group">
@@ -397,6 +432,70 @@
 
   <script>
     let pollInterval = null;
+
+    const PRESETS = {
+      lofi: {
+        prompt: "Mellow lo-fi hip hop study beats with warm Rhodes electric piano, vinyl crackle, and swung drums",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "relaxed intro"}, {"start_s": 15, "mood": "lofi beat groove"}]'
+      },
+      cinematic: {
+        prompt: "Epic dramatic cinematic movie trailer with thunderous timpani booms, bowed cello strings, and heroic brass",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "mysterious calm"}, {"start_s": 12, "mood": "epic orchestra climax"}]'
+      },
+      synthwave: {
+        prompt: "Pumping 80s synthwave cyberpunk neon drive with analog supersaw chords, arp bass, and sidechain ducking",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "80s intro"}, {"start_s": 15, "mood": "driving synth drop"}]'
+      },
+      sad_piano: {
+        prompt: "Emotional melancholic piano melody with soft acoustic piano chords, gentle sorrow, and cello strings",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "gentle sorrow"}, {"start_s": 15, "mood": "emotional crescendo"}]'
+      },
+      rock: {
+        prompt: "Aggressive hard rock with overdriven electric guitar power chords, fast acoustic drums, and heavy bass",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "riff intro"}, {"start_s": 12, "mood": "heavy energetic chorus"}]'
+      },
+      edm: {
+        prompt: "High energy electronic festival dance club beat with driving four on the floor kick and pumping saw leads",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "build up"}, {"start_s": 12, "mood": "energetic drop"}]'
+      },
+      acoustic: {
+        prompt: "Warm acoustic folk guitar morning sunshine with cheerful fingerpicking, cajon hand percussion, and shaker",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "peaceful morning"}, {"start_s": 15, "mood": "uplifting strumming"}]'
+      },
+      jazz: {
+        prompt: "Sophisticated smooth midnight jazz lounge with walking upright bass, swung brush ride, and Rhodes chords",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "smoky lounge"}, {"start_s": 15, "mood": "swing groove"}]'
+      },
+      horror: {
+        prompt: "Dark scary horror suspense thriller with creepy dissonant tritones, heartbeat double-thuds, and metallic scrapes",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "eerie tension"}, {"start_s": 15, "mood": "terrifying climax"}]'
+      },
+      ambient: {
+        prompt: "Deep tranquil zen meditation ambient drone with shimmering singing bowls, peaceful harmony, and no drums",
+        duration: 30,
+        sections: '[{"start_s": 0, "mood": "deep stillness"}, {"start_s": 15, "mood": "ethereal floating"}]'
+      }
+    };
+
+    function applyPreset(key) {
+      const p = PRESETS[key];
+      if (!p) return;
+      document.getElementById('prompt').value = p.prompt;
+      document.getElementById('duration').value = p.duration;
+      document.getElementById('sections').value = p.sections;
+      document.getElementById('tempo').value = '';
+      document.getElementById('key').value = '';
+      document.getElementById('seed').value = '';
+    }
 
     document.getElementById('musicForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -515,7 +614,9 @@
         // Stats pills
         const qm = manifest.quality_measurements;
         const sr = manifest.stem_reconstruction;
+        const tempoKey = (manifest.tempo_bpm ? `${manifest.tempo_bpm} BPM` : '') + (manifest.key ? ` • ${manifest.key}` : '');
         document.getElementById('statPills').innerHTML = `
+          <div class="stat-pill" style="border: 1px solid var(--accent-primary);">Recipe: <strong style="color: #bfa3ff;">${tempoKey || 'Harmonic Synthesizer'}</strong></div>
           <div class="stat-pill">Duration: <strong>${qm.measured_duration_s}s</strong></div>
           <div class="stat-pill">Loudness: <strong>${qm.integrated_lufs} LUFS</strong></div>
           <div class="stat-pill">True Peak: <strong>${qm.true_peak_dbtp} dBTP</strong></div>
