@@ -43,24 +43,42 @@ class MockStemSeparator(BaseStemSeparator):
             mix_len = mix_audio.shape[0]
             stems = {}
 
-            # Calculate raw sum of cached stems to determine normalization scaling
-            raw_sum = cached["drums"] + cached["bass"] + cached["other"]
-            # Scale stems proportionally to match the normalized mix amplitude
-            raw_rms = np.sqrt(np.mean(raw_sum**2))
-            mix_rms = np.sqrt(np.mean(mix_audio**2))
-            scale_factor = (mix_rms / (raw_rms + 1e-9)) if raw_rms > 1e-9 else 1.0
+            d = cached["drums"]
+            b = cached["bass"]
+            o = cached["other"]
 
-            for name, audio in cached.items():
-                scaled = audio * scale_factor
-                if scaled.shape[0] != mix_len:
-                    if scaled.shape[0] < mix_len:
-                        pad = np.zeros((mix_len - scaled.shape[0], scaled.shape[1]), dtype=scaled.dtype)
-                        aligned = np.vstack([scaled, pad])
-                    else:
-                        aligned = scaled[:mix_len, :]
-                else:
-                    aligned = scaled.copy()
-                stems[name] = (aligned, 1.0)
+            # Ensure all cached stems match mix_len
+            def _fit_len(arr: np.ndarray) -> np.ndarray:
+                if arr.shape[0] < mix_len:
+                    pad = np.zeros((mix_len - arr.shape[0], arr.shape[1]), dtype=arr.dtype)
+                    return np.vstack([arr, pad])
+                return arr[:mix_len, :]
+
+            d_fit = _fit_len(d)
+            b_fit = _fit_len(b)
+            o_fit = _fit_len(o)
+            raw_sum = d_fit + b_fit + o_fit
+
+            # Proportional decomposition guaranteeing exact mathematical reconstruction:
+            # drums + bass + other == mix_audio across all samples
+            eps = 1e-7
+            denom = np.abs(d_fit) + np.abs(b_fit) + np.abs(o_fit) + eps
+            drums_ratio = np.clip(np.abs(d_fit) / denom, 0.0, 1.0)
+            bass_ratio = np.clip(np.abs(b_fit) / denom, 0.0, 1.0)
+
+            # Keep headroom for other stem
+            sum_db = drums_ratio + bass_ratio
+            mask = sum_db > 0.95
+            drums_ratio[mask] = drums_ratio[mask] / sum_db[mask] * 0.90
+            bass_ratio[mask] = bass_ratio[mask] / sum_db[mask] * 0.90
+
+            drums_stem = (mix_audio * drums_ratio).astype(np.float32)
+            bass_stem = (mix_audio * bass_ratio).astype(np.float32)
+            other_stem = (mix_audio - drums_stem - bass_stem).astype(np.float32)
+
+            stems["drums"] = (drums_stem, 1.0)
+            stems["bass"] = (bass_stem, 1.0)
+            stems["other"] = (other_stem, 1.0)
 
             return StemSeparationResult(
                 stems=stems,

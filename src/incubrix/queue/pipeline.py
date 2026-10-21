@@ -153,7 +153,7 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
         for stem_name, (stem_data, stem_gain) in separation_result.stems.items():
             s_stereo = processor.ensure_stereo(stem_data)
             s_dur = processor.enforce_exact_duration(
-                s_stereo, target_sr, request.duration_s, fade_out_duration_s=1.5
+                s_stereo, target_sr, request.duration_s, fade_out_duration_s=0.0
             )
             aligned_stems[stem_name] = (s_dur, stem_gain)
 
