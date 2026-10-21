@@ -1,0 +1,16 @@
+# Gitignore for IncuBrix AI Background Music Engine
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.db
+storage_data/
+results/
+.env
+.venv/
+env/
+venv/
+*.egg-info/
+dist/
+build/
