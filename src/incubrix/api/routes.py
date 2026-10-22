@@ -116,11 +116,16 @@ async def create_music_job(
     p_lower = request_data.prompt.lower()
     if "vocal" in p_lower or "singing" in p_lower or "lyrics" in p_lower:
         initial_warnings.append("Request asked for vocals. This engine is strictly instrumental; vocals were suppressed.")
-    copyrighted_refs = ["taylor swift", "beatles", "drake", "queen", "michael jackson", "ed sheeran"]
+    copyrighted_refs = [
+        "taylor swift", "beatles", "drake", "queen", "michael jackson", "ed sheeran",
+        "beethoven", "hans zimmer", "mozart", "bach", "coldplay", "nirvana",
+        "pink floyd", "eminem", "adele", "the weeknd", "ac/dc", "daft punk",
+        "metallica", "elvis", "bob marley", "radiohead", "led zeppelin"
+    ]
     for cr in copyrighted_refs:
         if cr in p_lower:
             initial_warnings.append(
-                f"Prompt referenced '{cr}'. To respect copyright, an original composition is generated instead."
+                f"Prompt referenced '{cr}'. To respect copyright, prevent infringement, and ensure output is safe to publish commercially, an original composition is generated instead of copying an existing song."
             )
 
     # Persist job and idempotency record
