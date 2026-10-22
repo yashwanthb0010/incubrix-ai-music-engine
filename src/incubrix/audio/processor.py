@@ -150,11 +150,14 @@ class AudioProcessor:
         else:
             result = audio.copy()
 
-        fade_len = min(int(round(fade_out_duration_s * sample_rate)), target_samples // 4)
+        fade_len = min(int(round(fade_out_duration_s * sample_rate)), int(target_samples * 0.35))
         if fade_len > 0:
-            t = np.linspace(0, np.pi / 2, fade_len)
-            fade_curve = np.cos(t)[:, np.newaxis]
+            # Raised-cosine (Hann) S-curve fade down to exact 0.0 with zero derivative at both ends
+            t = np.linspace(0.0, np.pi, fade_len)
+            fade_curve = (0.5 * (1.0 + np.cos(t)))[:, np.newaxis]
             result[-fade_len:, :] = result[-fade_len:, :] * fade_curve
+            # Guarantee the terminal sample is mathematically 0.000000 to eliminate any hard cut
+            result[-1, :] = 0.0
 
         return result
 

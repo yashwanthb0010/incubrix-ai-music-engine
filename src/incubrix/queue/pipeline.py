@@ -122,9 +122,10 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
         else:
             resampled = raw_audio
 
-        # Enforce exact duration with musical fade-out
+        # Enforce exact duration with musical fade-out (up to 3.0s on the bar-line, 0s if loopable)
+        fade_dur = 0.0 if request.loopable else min(3.0, max(1.2, request.duration_s * 0.15))
         duration_enforced = processor.enforce_exact_duration(
-            resampled, target_sr, request.duration_s, fade_out_duration_s=1.5
+            resampled, target_sr, request.duration_s, fade_out_duration_s=fade_dur
         )
 
         # Handle loopable if requested

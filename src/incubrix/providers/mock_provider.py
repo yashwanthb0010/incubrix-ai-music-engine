@@ -500,16 +500,44 @@ class MockMusicProvider(BaseMusicProvider):
     # ------------------------------------------------------------------
     def _synth_drums(self, drum_style: str, num_beats: int, samples_per_beat: int,
                      total_samples: int, sr: int, rng: np.random.RandomState,
-                     sections: list, beat_interval_s: float) -> np.ndarray:
+                     sections: list, beat_interval_s: float, is_loopable: bool = False) -> np.ndarray:
         drums = np.zeros(total_samples, dtype=np.float32)
         if drum_style == "none":
             return drums
+
+        total_dur_s = float(total_samples) / sr
+        # Calculate cadence downbeat for intentional ending hit
+        if not is_loopable:
+            if total_dur_s < 8.0:
+                cadence_beat = max(0, num_beats - 2)
+            else:
+                cadence_beat = ((num_beats - 1) // 4) * 4
+                if (num_beats - cadence_beat) > 4:
+                    cadence_beat = max(0, num_beats - 4)
+        else:
+            cadence_beat = -1
 
         for b in range(num_beats):
             bs = int(b * samples_per_beat)
             if bs >= total_samples:
                 break
             beat_time = b * beat_interval_s
+
+            # Intentional ending handling:
+            if not is_loopable and cadence_beat >= 0:
+                if b == cadence_beat:
+                    # Final resolving accent hit (punchy kick + resonant crash cymbal ring-out)
+                    kl = min(int(0.25 * sr), total_samples - bs)
+                    kt = np.linspace(0, 0.25, kl)
+                    drums[bs:bs + kl] += np.sin(2 * np.pi * (50 + 90 * np.exp(-kt * 24)) * kt) * np.exp(-kt * 12) * 0.90
+                    
+                    crash_len = min(int(3.2 * sr), total_samples - bs)
+                    crash_t = np.linspace(0, float(crash_len) / sr, crash_len)
+                    drums[bs:bs + crash_len] += (rng.rand(crash_len) * 2 - 1) * np.exp(-crash_t * 2.0) * 0.40
+                    continue
+                elif b > cadence_beat:
+                    # Silence any new drum triggers after final hit so cymbal and chords naturally ring out
+                    continue
 
             # Check section mood
             sec_mood = ""
@@ -727,8 +755,10 @@ class MockMusicProvider(BaseMusicProvider):
     # ------------------------------------------------------------------
     def _synth_bass(self, bass_style: str, num_beats: int, samples_per_beat: int,
                     total_samples: int, sr: int, root_freq: float,
-                    progression: List[List[float]], rng: np.random.RandomState) -> np.ndarray:
+                    progression: List[List[float]], rng: np.random.RandomState,
+                    is_loopable: bool = False) -> np.ndarray:
         bass = np.zeros(total_samples, dtype=np.float32)
+        num_bars = int(math.ceil(total_samples / float(samples_per_beat * 4)))
 
         for b in range(num_beats):
             bs = int(b * samples_per_beat)
@@ -739,8 +769,11 @@ class MockMusicProvider(BaseMusicProvider):
 
             # Get active bar's chord root
             bar_idx = b // 4
-            chord_intervals = progression[bar_idx % len(progression)]
-            bar_root_ratio = chord_intervals[0]  # root of this chord
+            if not is_loopable and bar_idx >= num_bars - 1:
+                bar_root_ratio = 1.0  # Resolve to Tonic root on final bar
+            else:
+                chord_intervals = progression[bar_idx % len(progression)]
+                bar_root_ratio = chord_intervals[0]  # root of this chord
             bass_freq = (root_freq * 0.5) * bar_root_ratio
 
             # Keep frequency in pleasant low register (40Hz to 180Hz)
@@ -826,7 +859,8 @@ class MockMusicProvider(BaseMusicProvider):
     def _synth_chords(self, chord_instrument: str, progression: List[List[float]],
                       root_freq: float, sr: int, total_samples: int,
                       samples_per_beat: int, fx: dict,
-                      rng: np.random.RandomState) -> Tuple[np.ndarray, np.ndarray]:
+                      rng: np.random.RandomState, is_loopable: bool = False,
+                      is_minor: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Synthesizes rich stereo chords changing every bar with realistic acoustic envelopes."""
         left = np.zeros(total_samples, dtype=np.float32)
         right = np.zeros(total_samples, dtype=np.float32)
@@ -842,8 +876,11 @@ class MockMusicProvider(BaseMusicProvider):
             bar_len = min(samples_per_bar, total_samples - bar_start)
             bar_t = np.linspace(0, float(bar_len) / sr, bar_len, endpoint=False)
 
-            # Active chord ratios for this bar
-            chord_ratios = progression[bar_i % len(progression)]
+            # Active chord ratios for this bar (resolve to Tonic root chord on final bar for intentional cadence)
+            if not is_loopable and bar_i == num_bars - 1:
+                chord_ratios = [1.0, 1.20, 1.50, 2.00] if is_minor else [1.0, 1.25, 1.50, 2.00]
+            else:
+                chord_ratios = progression[bar_i % len(progression)]
 
             bar_l = np.zeros(bar_len, dtype=np.float32)
             bar_r = np.zeros(bar_len, dtype=np.float32)
@@ -1000,8 +1037,10 @@ class MockMusicProvider(BaseMusicProvider):
     # ------------------------------------------------------------------
     def _synth_melody(self, melody_style: str, num_beats: int, samples_per_beat: int,
                       total_samples: int, sr: int, root_freq: float,
-                      progression: List[List[float]], rng: np.random.RandomState) -> np.ndarray:
+                      progression: List[List[float]], rng: np.random.RandomState,
+                      is_loopable: bool = False) -> np.ndarray:
         melody = np.zeros(total_samples, dtype=np.float32)
+        num_bars = int(math.ceil(total_samples / float(samples_per_beat * 4)))
 
         # How often does a melody note strike (in beats)?
         note_interval = 2 if melody_style in ("piano_solo", "brass_horn", "singing_bowl") else 1
@@ -1015,10 +1054,13 @@ class MockMusicProvider(BaseMusicProvider):
 
             # Get active chord's notes to guarantee harmonic coherence
             bar_idx = b // 4
-            chord_ratios = progression[bar_idx % len(progression)]
-            # Pick a chord tone or upper extension
-            note_idx = rng.randint(0, len(chord_ratios))
-            note_freq = root_freq * chord_ratios[note_idx] * 2.0  # octave up
+            if not is_loopable and bar_idx >= num_bars - 1:
+                note_freq = root_freq * 2.0  # Resolve to keynote on final bar
+            else:
+                chord_ratios = progression[bar_idx % len(progression)]
+                # Pick a chord tone or upper extension
+                note_idx = rng.randint(0, len(chord_ratios))
+                note_freq = root_freq * chord_ratios[note_idx] * 2.0  # octave up
 
             # Keep melody in singing range (250Hz - 1200Hz)
             while note_freq < 250.0:
@@ -1130,28 +1172,35 @@ class MockMusicProvider(BaseMusicProvider):
                 "aligned_within_0_5s": deviation <= 0.5,
             })
 
+        is_loopable = bool(request.loopable)
+        is_minor = "minor" in key_str.lower()
+
         # --- 1. Synthesize Drums ---
         drums_line = self._synth_drums(
             profile["drum_style"], num_beats, samples_per_beat,
-            total_samples, sr, rng, sections, beat_interval_s
+            total_samples, sr, rng, sections, beat_interval_s,
+            is_loopable=is_loopable
         )
 
         # --- 2. Synthesize Bass ---
         bass_line = self._synth_bass(
             profile["bass_style"], num_beats, samples_per_beat,
-            total_samples, sr, root_freq, progression, rng
+            total_samples, sr, root_freq, progression, rng,
+            is_loopable=is_loopable
         )
 
         # --- 3. Synthesize Chords ---
         chord_left, chord_right = self._synth_chords(
             profile["chord_instrument"], progression, root_freq, sr,
-            total_samples, samples_per_beat, fx, rng
+            total_samples, samples_per_beat, fx, rng,
+            is_loopable=is_loopable, is_minor=is_minor
         )
 
         # --- 4. Synthesize Melodic Lead ---
         melody_line = self._synth_melody(
             profile["melody_style"], num_beats, samples_per_beat,
-            total_samples, sr, root_freq, progression, rng
+            total_samples, sr, root_freq, progression, rng,
+            is_loopable=is_loopable
         )
 
         # --- 5. Apply Vinyl Crackle & Reverb FX ---
