@@ -39,6 +39,7 @@ class Settings(BaseModel):
     stable_audio_model_id: str = Field(default_factory=lambda: os.getenv("STABLE_AUDIO_MODEL_ID", "stabilityai/stable-audio-3-small-music"))
     hf_token: Optional[str] = Field(default_factory=lambda: os.getenv("HF_TOKEN", None) or None)
     torch_device: str = Field(default_factory=lambda: os.getenv("TORCH_DEVICE", "cuda"))
+    model_timeout_s: float = Field(default_factory=lambda: float(os.getenv("MODEL_TIMEOUT_S", "45.0")))
 
     # Stem Separator
     # "mock" or "demucs"

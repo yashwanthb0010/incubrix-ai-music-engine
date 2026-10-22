@@ -1284,6 +1284,8 @@ class MockMusicProvider(BaseMusicProvider):
             f"Detected Genre: '{profile['display_name']}' | Key: {key_str} | Tempo: {bpm} BPM",
         ]
         p_lower = request.prompt.lower()
+        if "calm" in p_lower and "aggressive" in p_lower:
+            warnings.append("Prompt contains contradictory attributes ('calm' vs 'aggressive'). Dynamically resolved with contrasting calm ambient harmonics and aggressive percussion drive.")
         if any(w in p_lower for w in ("vocal", "singing", "lyrics", "rap")):
             warnings.append("Request asked for vocals. This engine is strictly instrumental; vocals were suppressed.")
         copyrighted_refs = ["taylor swift", "beatles", "drake", "queen", "michael jackson", "ed sheeran", "beethoven", "hans zimmer"]

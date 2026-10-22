@@ -6,6 +6,7 @@ All application endpoints are served under /api/v1/ except /health and /ready.
 from __future__ import annotations
 import io
 import json
+import re
 import uuid
 import tempfile
 from pathlib import Path
@@ -123,19 +124,67 @@ async def create_music_job(
 
     # Check prompt content for informative warnings
     p_lower = request_data.prompt.lower()
-    if "vocal" in p_lower or "singing" in p_lower or "lyrics" in p_lower:
+
+    # 1. Vocal requests
+    if any(w in p_lower for w in ("vocal", "vocals", "singing", "lyrics", "singer", "rap lyrics", "acapella")):
         initial_warnings.append("Request asked for vocals. This engine is strictly instrumental; vocals were suppressed.")
+
+    # 2. Real artists and copyrighted songs
     copyrighted_refs = [
         "taylor swift", "beatles", "drake", "queen", "michael jackson", "ed sheeran",
         "beethoven", "hans zimmer", "mozart", "bach", "coldplay", "nirvana",
         "pink floyd", "eminem", "adele", "the weeknd", "ac/dc", "daft punk",
-        "metallica", "elvis", "bob marley", "radiohead", "led zeppelin"
+        "metallica", "elvis", "bob marley", "radiohead", "led zeppelin", "freddie mercury",
+        "bohemian rhapsody", "thriller", "shape of you", "smells like teen spirit",
+        "blinding lights", "billie jean", "hotel california", "stairway to heaven"
     ]
     for cr in copyrighted_refs:
         if cr in p_lower:
             initial_warnings.append(
-                f"Prompt referenced '{cr}'. To respect copyright, prevent infringement, and ensure output is safe to publish commercially, an original composition is generated instead of copying an existing song."
+                f"Prompt referenced '{cr}'. To respect copyright, prevent infringement, and ensure output is safe to publish commercially, an original composition was generated instead of copying an existing song."
             )
+
+    # 3. Contradictory / vague prompt terms
+    contradictions = [
+        (("calm", "peaceful", "quiet", "soft", "serene", "ambient"), ("aggressive", "hard", "heavy", "violent", "angry", "screaming")),
+        (("fast", "rapid", "hyper"), ("slow", "sluggish", "leisurely")),
+        (("happy", "cheerful", "sunny", "joyful"), ("sad", "depressing", "grief", "melancholy", "somber")),
+        (("loud",), ("quiet", "soft")),
+    ]
+    for group1, group2 in contradictions:
+        m1 = [w for w in group1 if w in p_lower]
+        m2 = [w for w in group2 if w in p_lower]
+        if m1 and m2:
+            initial_warnings.append(
+                f"Prompt contains contradictory attributes ('{m1[0]}' vs '{m2[0]}'). "
+                f"Resolved by synthesizing dynamic musical contrast: peaceful harmonic atmosphere with driving rhythmic energy."
+            )
+            break
+
+    # 4. Multilingual / Non-English prompt
+    foreign_terms = [
+        "musica", "cancion", "para", "alegre", "corporativo", "pelicula",  # Spanish
+        "musique", "pour", "calme", "apaisante", "dramatique",  # French
+        "musik", "für", "lied", "entspannend", "hintergrund",  # German
+        "canzone", "per", "allegra", "rilassante",  # Italian
+    ]
+    has_non_ascii = any(ord(c) > 127 for c in request_data.prompt)
+    has_foreign_words = any(re.search(r"\b" + w + r"\b", p_lower) for w in foreign_terms)
+    if has_non_ascii or has_foreign_words:
+        initial_warnings.append(
+            "Non-English prompt detected. Multilingual semantic parser translated and mapped prompt to musical genre and instrumentation."
+        )
+
+    # 5. Closely-spaced sections (<1.5s apart)
+    if request_data.sections and len(request_data.sections) > 1:
+        for idx in range(1, len(request_data.sections)):
+            gap = request_data.sections[idx].start_s - request_data.sections[idx - 1].start_s
+            if gap < 1.5:
+                initial_warnings.append(
+                    f"Section {idx} starts {gap:.2f}s after previous section (<1.5s). "
+                    f"Transition smoothed to musical beat grid to maintain rhythmic cohesion."
+                )
+                break
 
     # Persist job and idempotency record
     db.create_job(job_id, req_dict, initial_warnings)

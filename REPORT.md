@@ -229,6 +229,10 @@ How many simultaneous jobs one server handles at once:
 - **Requirement:** No click and no break in the beat at the loop point when `loopable: true`.
 - **Verification:** Verified in `test_18_loopable_audio`. Tempo automatically snaps so the track duration contains an exact integer number of full bars. Raised-cosine crossfading eliminates amplitude boundary jumps ($< 10^{-6}$ linear amplitude).
 
+### 4.6 Hard Cases & Edge Resilience
+- **Requirement:** System must handle short/long durations, contradictory prompts, real artist/vocal requests, close sections, silent narration, non-English prompts, simultaneous jobs, and provider timeouts sensibly with clear warnings/errors instead of failing silently.
+- **Verification:** Verified across all 12 tests in `tests/test_hard_cases.py` and interactively runnable in the **Hard cases** tab of the demo web studio. Detailed methodology in `HARD_CASES.md`.
+
 ---
 
 ## 5. Architectural Quality Checklist
@@ -239,6 +243,7 @@ How many simultaneous jobs one server handles at once:
 - [x] **Two Approaches Compared:** Complete technical, quality, latency, and cost comparison matrix.
 - [x] **Clear Production Recommendation:** Hybrid Procedural Engine for real-time tier; Diffusion for premium batch.
 - [x] **Production Numbers:** 0.18s latency and $0.0000085 USD per minute on 12-job concurrent CPU nodes.
+- [x] **Hard Cases Resilience:** All 8 screening scenarios handled sensibly with explicit warnings/errors in `HARD_CASES.md` and UI tab.
 - [x] **Single-Stem Regeneration:** First-class API endpoint and web UI button.
 - [x] **Anti-Pumping Ducking:** Attack/hold/release smoothing with volume curve in manifest.
-- [x] **Full Test Suite:** 44/44 automated tests passing (100% green).
+- [x] **Full Test Suite:** 56/56 automated tests passing (100% green).

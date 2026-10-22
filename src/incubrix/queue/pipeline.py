@@ -5,7 +5,7 @@ Music Provider -> Audio Processing (LUFS/True Peak/Fade) -> Stem Separation & Al
 -> Mix Reconstruction Fidelity -> Narration Ducking -> Multi-format Export -> Validation -> Manifest.
 """
 
-from __future__ import annotations
+import asyncio
 import io
 import json
 import math
@@ -113,7 +113,36 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
         db.update_job_progress(job_id, JobStatus.RUNNING, 10)
 
         # Step 2: Generate Music via Provider (30%)
-        gen_result = await music_provider.generate_music(request)
+        try:
+            gen_result = await asyncio.wait_for(
+                music_provider.generate_music(request),
+                timeout=cfg.model_timeout_s,
+            )
+        except asyncio.TimeoutError:
+            raise IncubrixError(
+                code=ErrorCode.PROVIDER_TIMEOUT,
+                message=f"Music provider timed out after {cfg.model_timeout_s}s during music waveform synthesis.",
+                status_code=504,
+                retryable=True,
+                details={"timeout_s": cfg.model_timeout_s, "stage": "waveform_generation"},
+            )
+        except IncubrixError:
+            raise
+        except Exception as e:
+            raise IncubrixError(
+                code=ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
+                message=f"Music provider failed during synthesis: {str(e)}",
+                status_code=503,
+                retryable=True,
+                details={"exception": type(e).__name__, "error": str(e)},
+            )
+
+        initial_job = db.get_job(job_id)
+        if initial_job and initial_job.warnings:
+            for w in reversed(initial_job.warnings):
+                if w not in gen_result.warnings:
+                    gen_result.warnings.insert(0, w)
+
         db.update_job_progress(job_id, JobStatus.RUNNING, 30, warnings=gen_result.warnings)
 
         # Step 3: Resample, normalize, and enforce exact duration
@@ -196,6 +225,10 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
                 volume_curve_summary=d_info["volume_curve_summary"],
                 volume_curve=d_info.get("volume_curve"),
             )
+            if not d_info.get("speech_detected", True):
+                gen_result.warnings.append(
+                    "No speech activity detected in narration audio; ducking was bypassed and master mix remains unattenuated."
+                )
 
         # Step 6: Export Audio Files to Storage (85%)
         db.update_job_progress(job_id, JobStatus.RUNNING, 85)
