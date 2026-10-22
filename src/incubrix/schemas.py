@@ -42,7 +42,9 @@ class CreateMusicJobRequest(BaseModel):
     tempo_bpm: Optional[int] = Field(default=None, ge=30, le=260, description="Musical tempo in beats per minute")
     key: Optional[str] = Field(default=None, max_length=50, description="Musical key/scale (e.g. 'C major', 'A minor')")
     loopable: bool = Field(default=False, description="Whether to produce a seamless loopable track")
-    narration_url: Optional[str] = Field(default=None, description="Optional audio URL of speech track for ducking")
+    narration_url: Optional[str] = Field(default=None, description="Optional audio URL or upload path of speech track for ducking")
+    callback_url: Optional[str] = Field(default=None, description="Optional webhook URL to receive completed job payload")
+    callback_secret: Optional[str] = Field(default=None, description="Optional shared secret for HMAC-SHA256 signature in X-IncuBrix-Signature")
     seed: Optional[int] = Field(default=None, ge=0, description="Random seed for reproducible generation")
     output: Optional[OutputConfig] = Field(default_factory=OutputConfig, description="Output audio specification")
 

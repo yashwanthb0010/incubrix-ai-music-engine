@@ -194,17 +194,25 @@ All API errors return standardized JSON responses with uppercase snake-case code
 
 | Error Code | HTTP Status | Description |
 | :--- | :--- | :--- |
-| `VALIDATION_ERROR` | 400 | Invalid payload (e.g. duration out of 5-300s range, invalid section time). |
-| `MISSING_IDEMPOTENCY_KEY` | 400 | The required `Idempotency-Key` header was omitted. |
-| `SSRF_ATTEMPT_BLOCKED` | 400 | Narration URL targeted localhost or private network address. |
-| `IDEMPOTENCY_CONFLICT` | 409 | The same `Idempotency-Key` was submitted with a different payload. |
+| `VALIDATION_ERROR` | 400 | Invalid payload (e.g. duration out of 5–300s range, unsupported audio format). |
+| `INVALID_SECTION_TIMESTAMPS` | 400 | Section timestamp exceeds or equals requested track duration. |
+| `MISSING_IDEMPOTENCY_KEY` | 400 | The required `Idempotency-Key` header was omitted from a POST request. |
+| `IDEMPOTENCY_CONFLICT` | 409 | The same `Idempotency-Key` was submitted with a conflicting payload. |
+| `SSRF_ATTEMPT_BLOCKED` | 400 | Narration URL targeted localhost, internal IP, or private cloud metadata. |
+| `NARRATION_FETCH_FAILED` | 400 | Could not fetch or decode speech narration audio from provided URL or upload. |
+| `UNSUPPORTED_FORMAT` | 400 | Audio file format or requested export extension is unsupported. |
+| `UNAUTHORIZED` | 401 | Missing or invalid authentication token when `DEMO_ACCESS_TOKEN` is configured. |
 | `JOB_NOT_FOUND` | 404 | Specified `job_id` does not exist in the database. |
 | `ASSET_NOT_FOUND` | 404 | Requested audio file or manifest has not been generated or was removed. |
-| `MODEL_PROVIDER_UNAVAILABLE`| 503 | The configured AI generation model or inference library cannot be reached. |
-| `MISSING_MODEL_CREDENTIALS` | 503 | `HF_TOKEN` was not provided for gated models. |
-| `STEM_SEPARATION_FAILED` | 500 | Stem separation model failed during tensor processing. |
-| `STORAGE_FAILURE` | 500 | Could not save asset to MinIO or local filesystem. |
 | `RATE_LIMIT_EXCEEDED` | 429 | Client exceeded rate limits (default: 60 req/min). |
+| `PROVIDER_TIMEOUT` | 504 | Upstream music generation model timed out before completing audio synthesis. |
+| `MODEL_PROVIDER_UNAVAILABLE`| 503 | Configured AI generation model or inference library cannot be reached. |
+| `MISSING_MODEL_CREDENTIALS` | 503 | `HF_TOKEN` was not provided for gated Hugging Face weights. |
+| `STEM_SEPARATION_FAILED` | 500 | Stem separation model failed during audio tensor decomposition. |
+| `AUDIO_PROCESSING_ERROR` | 500 | DSP normalization, LUFS filtering, or format transcoding failed. |
+| `STORAGE_FAILURE` | 500 | Could not save asset to MinIO S3 or local filesystem storage. |
+| `WORKER_FAILURE` | 500 | Background asynchronous worker task failed during pipeline execution. |
+| `INTERNAL_SERVER_ERROR` | 500 | An unhandled server exception occurred. |
 
 ---
 

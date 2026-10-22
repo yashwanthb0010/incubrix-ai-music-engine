@@ -32,6 +32,7 @@ class Settings(BaseModel):
     min_request_duration_s: float = Field(default_factory=lambda: float(os.getenv("MIN_REQUEST_DURATION_S", "5.0")))
     max_narration_file_size_mb: int = Field(default_factory=lambda: int(os.getenv("MAX_NARRATION_FILE_SIZE_MB", "50")))
     ssrf_protection_enabled: bool = Field(default_factory=lambda: os.getenv("SSRF_PROTECTION_ENABLED", "true").lower() in ("true", "1", "yes"))
+    webhook_signing_secret: str = Field(default_factory=lambda: os.getenv("WEBHOOK_SIGNING_SECRET", "incubrix_default_hmac_secret"))
 
     # Music Generation Provider
     # "mock" or "stable_audio"

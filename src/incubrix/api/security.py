@@ -29,6 +29,10 @@ def validate_url_against_ssrf(url: str, enabled: bool = True) -> None:
     if not enabled or not url:
         return
 
+    # Internal uploaded assets are safe
+    if url.startswith("/api/v1/uploads/") or url.startswith("/uploads/") or "/uploads/" in url:
+        return
+
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):

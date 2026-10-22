@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import numpy as np
 import soundfile as sf
-from fastapi import APIRouter, Header, Request, Response, HTTPException, status
+from fastapi import APIRouter, Header, Request, Response, HTTPException, status, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 
 from incubrix.config import get_settings
@@ -474,6 +474,77 @@ async def download_job_asset(job_id: str, asset_name: str):
     }
 
     return Response(content=data, media_type=content_type, headers=headers)
+
+
+# -------------------------------------------------------------
+# File Uploads (Inputs accepted as upload or URL)
+# -------------------------------------------------------------
+
+@router.post(
+    "/api/v1/uploads",
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload an audio file (narration or reference audio)",
+    description="Uploads an audio file (e.g. speech narration WAV/MP3) to storage. Returns the upload URL and download link for use in music generation jobs.",
+)
+async def upload_audio_file(
+    file: UploadFile = File(...),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+):
+    cfg = get_settings()
+    storage = get_storage(cfg)
+
+    ext = Path(file.filename or "audio.wav").suffix.lower()
+    valid_exts = {".wav", ".mp3", ".ogg", ".flac", ".m4a"}
+    if ext not in valid_exts:
+        raise IncubrixError(
+            code=ErrorCode.UNSUPPORTED_FORMAT,
+            message=f"Unsupported audio file format '{ext}'. Supported formats: {sorted(list(valid_exts))}",
+            status_code=400,
+        )
+
+    content = await file.read()
+    if len(content) > cfg.max_narration_file_size_mb * 1024 * 1024:
+        raise IncubrixError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message=f"Uploaded audio file exceeds the maximum allowed size of {cfg.max_narration_file_size_mb} MB.",
+            status_code=400,
+        )
+
+    upload_id = f"upload_{uuid.uuid4().hex[:12]}"
+    filename = f"{upload_id}{ext}"
+    await storage.save_bytes("uploads", filename, content, content_type=file.content_type or "audio/wav")
+
+    download_url = f"/api/v1/uploads/{filename}"
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={
+            "upload_id": upload_id,
+            "filename": filename,
+            "size_bytes": len(content),
+            "url": download_url,
+            "download_url": download_url,
+        },
+    )
+
+
+@router.get(
+    "/api/v1/uploads/{filename}",
+    summary="Download uploaded audio file",
+    description="Streams or downloads an uploaded audio file.",
+)
+async def get_uploaded_file(filename: str):
+    cfg = get_settings()
+    storage = get_storage(cfg)
+    try:
+        content = await storage.get_bytes("uploads", filename)
+        media_type = "audio/wav" if filename.endswith(".wav") else "audio/mpeg"
+        return Response(content=content, media_type=media_type)
+    except Exception:
+        raise IncubrixError(
+            code=ErrorCode.ASSET_NOT_FOUND,
+            message=f"Uploaded file '{filename}' was not found.",
+            status_code=404,
+        )
 
 
 # -------------------------------------------------------------

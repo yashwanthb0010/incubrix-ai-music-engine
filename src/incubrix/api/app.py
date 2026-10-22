@@ -2,7 +2,7 @@
 FastAPI Application Entrypoint for IncuBrix AI Background Music Engine.
 """
 
-from __future__ import annotations
+import uuid
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -12,10 +12,15 @@ from fastapi.responses import HTMLResponse, Response, JSONResponse
 from incubrix.config import get_settings
 from incubrix.api.routes import router
 from incubrix.errors import IncubrixError, ErrorCode, incubrix_exception_handler
+from incubrix.logging import setup_structured_logging, get_logger, correlation_id_ctx
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+
+    # Initialize structured JSON logging
+    setup_structured_logging()
+    logger = get_logger("incubrix.api")
 
     app = FastAPI(
         title="IncuBrix AI Background Music Engine",
@@ -37,6 +42,23 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # X-Correlation-Id & Structured Logging Middleware
+    @app.middleware("http")
+    async def correlation_id_middleware(request: Request, call_next):
+        corr_id = request.headers.get("X-Correlation-Id") or f"corr_{uuid.uuid4().hex[:12]}"
+        token = correlation_id_ctx.set(corr_id)
+        logger.info(f"Incoming HTTP request: {request.method} {request.url.path}")
+        try:
+            response = await call_next(request)
+            response.headers["X-Correlation-Id"] = corr_id
+            logger.info(f"Completed HTTP request: {request.method} {request.url.path} -> {response.status_code}")
+            return response
+        except Exception as e:
+            logger.error(f"Unhandled exception in request: {request.method} {request.url.path} - {str(e)}")
+            raise
+        finally:
+            correlation_id_ctx.reset(token)
 
     # Exception Handlers
     app.add_exception_handler(IncubrixError, incubrix_exception_handler)

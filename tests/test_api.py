@@ -569,3 +569,112 @@ def test_22_regenerate_one_stem_without_changing_others(client: TestClient):
     assert sr["tolerances_met"] is True
     assert sr["reconstruction_snr_db"] > 25.0
 
+
+# --- 23. Structured Logging & X-Correlation-Id header ---
+
+def test_23_correlation_id_header(client: TestClient):
+    custom_corr_id = "corr_test_tracing_999"
+    resp = client.get("/health", headers={"X-Correlation-Id": custom_corr_id})
+    assert resp.status_code == 200
+    assert resp.headers.get("X-Correlation-Id") == custom_corr_id
+
+    # If omitted, server generates one
+    resp_auto = client.get("/health")
+    assert resp_auto.status_code == 200
+    assert "X-Correlation-Id" in resp_auto.headers
+    assert len(resp_auto.headers["X-Correlation-Id"]) > 5
+
+
+# --- 24. File Upload (Inputs as upload or URL) ---
+
+def test_24_file_upload_and_ducking(client: TestClient):
+    import numpy as np
+    import soundfile as sf
+    import io
+
+    # Generate small WAV audio buffer
+    sr = 48000
+    t = np.linspace(0, 3.0, 3 * sr)
+    audio = (np.sin(2 * np.pi * 440 * t) * 0.5).astype(np.float32)
+    buf = io.BytesIO()
+    sf.write(buf, audio, sr, format="WAV")
+    buf.seek(0)
+
+    # 1. Upload audio file
+    up_resp = client.post(
+        "/api/v1/uploads",
+        files={"file": ("speech_sample.wav", buf.getvalue(), "audio/wav")},
+        headers={"Idempotency-Key": "test_upload_file_1"},
+    )
+    assert up_resp.status_code == 201
+    up_data = up_resp.json()
+    assert "url" in up_data
+    assert "filename" in up_data
+    upload_url = up_data["url"]
+
+    # 2. Use upload URL in music generation job
+    job_resp = client.post(
+        "/api/v1/music/jobs",
+        json={
+            "prompt": "Video presentation with uploaded narration audio",
+            "duration_s": 8.0,
+            "narration_url": upload_url,
+        },
+        headers={"Idempotency-Key": "test_job_with_uploaded_audio"},
+    )
+    assert job_resp.status_code == 202
+    job_id = job_resp.json()["job_id"]
+    job = wait_for_job_completion(client, job_id)
+    assert job["status"] == "succeeded"
+
+    # Manifest should record ducking applied
+    manifest = client.get(f"/api/v1/jobs/{job_id}/manifest").json()
+    assert manifest["ducking"]["applied"] is True
+
+
+# --- 25. Webhook callback signed with HMAC-SHA256 in X-IncuBrix-Signature ---
+
+def test_25_webhook_callback_hmac_signature(client: TestClient, monkeypatch):
+    import json
+    import hmac
+    import hashlib
+    from incubrix.queue import pipeline
+
+    received_webhooks = []
+
+    async def mock_webhook_delivery(callback_url: str, payload: dict, secret: str):
+        payload_bytes = json.dumps(payload, default=str).encode("utf-8")
+        sig = hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        received_webhooks.append({
+            "url": callback_url,
+            "payload": payload,
+            "signature": sig,
+            "header": f"sha256={sig}",
+        })
+
+    monkeypatch.setattr(pipeline, "deliver_webhook_callback", mock_webhook_delivery)
+
+    test_secret = "client_hmac_secret_key_777"
+    resp = client.post(
+        "/api/v1/music/jobs",
+        json={
+            "prompt": "Webhook notification test track",
+            "duration_s": 6.0,
+            "callback_url": "https://example.com/webhooks/music-ready",
+            "callback_secret": test_secret,
+        },
+        headers={"Idempotency-Key": "test_webhook_callback"},
+    )
+    assert resp.status_code == 202
+    job_id = resp.json()["job_id"]
+    wait_for_job_completion(client, job_id)
+
+    # Verify webhook was invoked with HMAC-SHA256 signature
+    assert len(received_webhooks) == 1
+    wh = received_webhooks[0]
+    assert wh["url"] == "https://example.com/webhooks/music-ready"
+    assert wh["payload"]["job_id"] == job_id
+    assert wh["header"].startswith("sha256=")
+    assert len(wh["signature"]) == 64
+
+

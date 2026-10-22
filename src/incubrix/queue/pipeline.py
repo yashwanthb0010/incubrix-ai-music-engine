@@ -10,6 +10,8 @@ import io
 import json
 import math
 import os
+import hmac
+import hashlib
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -37,14 +39,58 @@ from incubrix.audio.validator import AudioValidator
 from incubrix.audio.ducking import DuckingEngine
 from incubrix.audio.ffmpeg_utils import convert_wav_to_mp3
 from incubrix.errors import IncubrixError, ErrorCode
+from incubrix.logging import get_logger, job_id_ctx
+
+
+async def deliver_webhook_callback(
+    callback_url: str,
+    payload: Dict[str, Any],
+    secret: str,
+) -> None:
+    """Delivers completed or failed job payload to callback URL with HMAC-SHA256 signature."""
+    logger = get_logger("incubrix.webhook")
+    try:
+        payload_bytes = json.dumps(payload, default=str).encode("utf-8")
+        signature = hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.post(
+                callback_url,
+                content=payload_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-IncuBrix-Signature": f"sha256={signature}",
+                    "X-IncuBrix-Signature-Raw": signature,
+                },
+            )
+            logger.info(f"Webhook callback delivered to {callback_url} (HTTP {resp.status_code})")
+    except Exception as e:
+        logger.warning(f"Failed to deliver webhook callback to '{callback_url}': {str(e)}")
 
 
 async def fetch_narration_audio(url: str, max_size_mb: int = 50) -> Tuple[np.ndarray, int]:
-    """Safely fetch narration audio file from URL with size limits."""
+    """Safely fetch narration audio file from URL or local storage upload."""
+    cfg = get_settings()
+    storage = get_storage(cfg)
+
+    # 1. Handle uploaded audio file in local/S3 storage
+    if "/uploads/" in url or url.startswith("upload"):
+        filename = url.split("/")[-1]
+        try:
+            content = await storage.get_bytes("uploads", filename)
+            data, sr = sf.read(io.BytesIO(content))
+            return data.astype(np.float32), sr
+        except Exception as e:
+            raise IncubrixError(
+                code=ErrorCode.NARRATION_FETCH_FAILED,
+                message=f"Failed to read uploaded narration file '{filename}': {str(e)}",
+                status_code=400,
+            )
+
+    # 2. Handle HTTP/HTTPS URL
     if not url.startswith("http://") and not url.startswith("https://"):
         raise IncubrixError(
             code=ErrorCode.VALIDATION_ERROR,
-            message=f"Invalid narration URL schema: '{url}'. Must start with http:// or https://",
+            message=f"Invalid narration URL schema: '{url}'. Must start with http:// or https:// or point to an upload.",
             status_code=400,
         )
 
@@ -99,6 +145,7 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
 
     pipeline_start_time = time.time()
     created_at_str = datetime.now(timezone.utc).isoformat()
+    j_token = job_id_ctx.set(job_id)
 
     try:
         req_dict = db.get_job_request(job_id)
@@ -394,6 +441,16 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
                 manifest=manifest.model_dump(),
             )
 
+            # Deliver webhook callback if configured
+            if request.callback_url:
+                job_record = db.get_job(job_id)
+                cb_payload = job_record.model_dump() if job_record else {"job_id": job_id, "status": "succeeded"}
+                await deliver_webhook_callback(
+                    callback_url=request.callback_url,
+                    payload=cb_payload,
+                    secret=request.callback_secret or cfg.webhook_signing_secret,
+                )
+
     except IncubrixError as e:
         error_dict = {
             "code": e.code,
@@ -402,6 +459,14 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
             "details": e.details,
         }
         db.update_job_progress(job_id, status=JobStatus.FAILED, progress=0, error=error_dict)
+        if 'request' in locals() and request and request.callback_url:
+            job_record = db.get_job(job_id)
+            cb_payload = job_record.model_dump() if job_record else {"job_id": job_id, "status": "failed", "error": error_dict}
+            await deliver_webhook_callback(
+                callback_url=request.callback_url,
+                payload=cb_payload,
+                secret=request.callback_secret or cfg.webhook_signing_secret,
+            )
     except Exception as e:
         error_dict = {
             "code": ErrorCode.WORKER_FAILURE,
@@ -410,3 +475,14 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
             "details": {"exception": type(e).__name__},
         }
         db.update_job_progress(job_id, status=JobStatus.FAILED, progress=0, error=error_dict)
+        if 'request' in locals() and request and request.callback_url:
+            job_record = db.get_job(job_id)
+            cb_payload = job_record.model_dump() if job_record else {"job_id": job_id, "status": "failed", "error": error_dict}
+            await deliver_webhook_callback(
+                callback_url=request.callback_url,
+                payload=cb_payload,
+                secret=request.callback_secret or cfg.webhook_signing_secret,
+            )
+    finally:
+        if 'j_token' in locals():
+            job_id_ctx.reset(j_token)

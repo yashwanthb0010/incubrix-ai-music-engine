@@ -91,6 +91,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/jobs/{job_id}/stems/{stem_name}/regenerate:
+    post:
+      summary: Regenerate one stem without altering others
+      description: Regenerates a single instrument part (e.g. new drums) while keeping
+        all other stems bit-for-bit identical, and re-renders the master mix.
+      operationId: regenerate_single_stem_endpoint_api_v1_jobs__job_id__stems__stem_name__regenerate_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Job Id
+      - name: stem_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Stem Name
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/RegenerateStemRequest'
+              - type: 'null'
+              title: Request Data
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/jobs/{job_id}/regenerate-stem:
+    post:
+      summary: Regenerate one stem without altering others
+      description: Regenerates a single instrument part (e.g. new drums) while keeping
+        all other stems bit-for-bit identical, and re-renders the master mix.
+      operationId: regenerate_stem_endpoint_api_v1_jobs__job_id__regenerate_stem_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Job Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateStemRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/jobs/{job_id}/download/{asset_name}:
     get:
       summary: Download generated audio asset
@@ -110,6 +180,63 @@ paths:
         schema:
           type: string
           title: Asset Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/uploads:
+    post:
+      summary: Upload an audio file (narration or reference audio)
+      description: Uploads an audio file (e.g. speech narration WAV/MP3) to storage.
+        Returns the upload URL and download link for use in music generation jobs.
+      operationId: upload_audio_file_api_v1_uploads_post
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_audio_file_api_v1_uploads_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/uploads/{filename}:
+    get:
+      summary: Download uploaded audio file
+      description: Streams or downloads an uploaded audio file.
+      operationId: get_uploaded_file_api_v1_uploads__filename__get
+      parameters:
+      - name: filename
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Filename
       responses:
         '200':
           description: Successful Response
@@ -146,6 +273,16 @@ paths:
               schema: {}
 components:
   schemas:
+    Body_upload_audio_file_api_v1_uploads_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_upload_audio_file_api_v1_uploads_post
     CreateMusicJobRequest:
       properties:
         prompt:
@@ -193,7 +330,19 @@ components:
           - type: string
           - type: 'null'
           title: Narration Url
-          description: Optional audio URL of speech track for ducking
+          description: Optional audio URL or upload path of speech track for ducking
+        callback_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callback Url
+          description: Optional webhook URL to receive completed job payload
+        callback_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callback Secret
+          description: Optional shared secret for HMAC-SHA256 signature in X-IncuBrix-Signature
         seed:
           anyOf:
           - type: integer
@@ -353,6 +502,29 @@ components:
           - mp3
       type: object
       title: OutputConfig
+    RegenerateStemRequest:
+      properties:
+        stem_name:
+          type: string
+          title: Stem Name
+          description: 'Name of the stem to regenerate: ''drums'', ''bass'', or ''other'''
+        style:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Style
+          description: Optional override style for the regenerated stem
+        seed:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Seed
+          description: Optional seed for deterministic stem regeneration
+      type: object
+      required:
+      - stem_name
+      title: RegenerateStemRequest
     Section:
       properties:
         start_s:
