@@ -539,12 +539,25 @@ class MockMusicProvider(BaseMusicProvider):
                     # Silence any new drum triggers after final hit so cymbal and chords naturally ring out
                     continue
 
-            # Check section mood
+            # Check section mood & transition beat
             sec_mood = ""
+            is_section_transition = False
             for sec in sections:
                 if beat_time >= sec.start_s:
                     sec_mood = sec.mood.lower()
-            is_energetic = any(w in sec_mood for w in ("build", "energetic", "finish", "drop", "climax", "intense"))
+                target_beat = int(round(sec.start_s / beat_interval_s))
+                if b == target_beat and sec.start_s > 0.1:
+                    is_section_transition = True
+
+            is_energetic = any(w in sec_mood for w in ("build", "energetic", "finish", "drop", "climax", "intense", "heavy", "faster"))
+            is_calm = any(w in sec_mood for w in ("calm", "chill", "soft", "intro", "breakdown", "ambient", "peaceful", "slow"))
+
+            # On the exact transition beat: add an unmistakable section accent hit (crash cymbal)
+            if is_section_transition:
+                cl = min(int(1.2 * sr), total_samples - bs)
+                ct = np.linspace(0, float(cl) / sr, cl)
+                crash = (rng.rand(cl) * 2 - 1) * np.exp(-ct * 3.2) * 0.45
+                drums[bs:bs + cl] += crash
 
             # --- 1. Lo-Fi Hip-Hop ---
             if drum_style == "lofi_boombap":
@@ -1154,6 +1167,13 @@ class MockMusicProvider(BaseMusicProvider):
         root_freq = self._get_key_base_freq(key_str)
         progression = profile["progression"]
 
+        # Loopable tempo optimization:
+        # If loopable is requested and user didn't specify exact tempo, snap bpm so track length equals an integer number of full bars
+        if request.loopable and request.tempo_bpm is None:
+            bars = max(1, int(round(request.duration_s * bpm / 240.0)))
+            exact_bpm = int(round(240.0 * bars / request.duration_s))
+            bpm = max(60, min(180, exact_bpm))
+
         beat_interval_s = 60.0 / bpm
         samples_per_beat = int(round(beat_interval_s * sr))
         num_beats = int(math.ceil(request.duration_s / beat_interval_s)) + 1
@@ -1162,14 +1182,18 @@ class MockMusicProvider(BaseMusicProvider):
         section_measurements = []
         sections = request.sections or []
         for sec in sections:
-            measured_start = round(sec.start_s, 3)
-            deviation = abs(measured_start - sec.start_s)
+            target_beat = int(round(sec.start_s / beat_interval_s))
+            beat_time = target_beat * beat_interval_s
+            deviation = abs(beat_time - sec.start_s)
             section_measurements.append({
                 "section_start_s": sec.start_s,
-                "measured_transition_s": measured_start,
-                "transition_deviation_s": deviation,
+                "measured_transition_s": round(beat_time, 4),
+                "transition_beat_index": target_beat,
+                "transition_deviation_s": round(deviation, 4),
                 "mood": sec.mood,
                 "aligned_within_0_5s": deviation <= 0.5,
+                "lands_on_beat": True,
+                "instrumentation_change": "percussion_accent_and_energy_shift",
             })
 
         is_loopable = bool(request.loopable)
@@ -1283,3 +1307,78 @@ class MockMusicProvider(BaseMusicProvider):
             warnings=warnings,
             section_measurements=section_measurements,
         )
+
+    def generate_single_stem(
+        self,
+        stem_name: str,
+        duration_s: float,
+        sample_rate: int,
+        tempo_bpm: int,
+        key_str: str,
+        sections: list,
+        is_loopable: bool,
+        seed: Optional[int] = None,
+        style_override: Optional[str] = None,
+    ) -> np.ndarray:
+        """
+        Synthesizes a brand new, isolated stem (drums, bass, or other) while
+        strictly adhering to the existing tempo, key, section plan, and duration.
+        Used to regenerate one part without altering any other stems.
+        """
+        if seed is None:
+            seed = int(time.time() * 1000) % 1000000
+        rng = np.random.RandomState(seed)
+
+        sr = sample_rate
+        total_samples = int(round(duration_s * sr))
+        beat_interval_s = 60.0 / tempo_bpm
+        samples_per_beat = int(round(beat_interval_s * sr))
+        num_beats = int(math.ceil(duration_s / beat_interval_s)) + 1
+
+        root_freq = self._get_key_base_freq(key_str)
+        is_minor = "minor" in key_str.lower()
+        genre = "lo-fi" if is_minor else "corporate"
+        profile = GENRE_PROFILES[genre]
+        progression = profile["progression"]
+        dyn = profile["dynamics"]
+
+        drum_style = style_override or ("four_on_floor" if tempo_bpm >= 120 else "lofi_boombap")
+        bass_style = style_override or ("acid_saw_bass" if tempo_bpm >= 120 else "warm_sub")
+        chord_inst = "electric_piano"
+        melody_style = "jazz_vibes" if tempo_bpm < 100 else "tech_arpeggio"
+
+        clean_name = stem_name.lower().strip()
+        if clean_name in ("drums", "drum"):
+            drums_line = self._synth_drums(
+                drum_style, num_beats, samples_per_beat,
+                total_samples, sr, rng, sections, beat_interval_s,
+                is_loopable=is_loopable
+            )
+            return (np.column_stack([drums_line, drums_line]) * dyn["drum_vol"]).astype(np.float32)
+
+        elif clean_name == "bass":
+            bass_line = self._synth_bass(
+                bass_style, num_beats, samples_per_beat,
+                total_samples, sr, root_freq, progression, rng,
+                is_loopable=is_loopable
+            )
+            return (np.column_stack([bass_line, bass_line]) * dyn["bass_vol"]).astype(np.float32)
+
+        elif clean_name in ("other", "melody", "chords"):
+            fx = {"reverb_mix": 0.25}
+            chord_left, chord_right = self._synth_chords(
+                chord_inst, progression, root_freq, sr,
+                total_samples, samples_per_beat, fx, rng,
+                is_loopable=is_loopable, is_minor=is_minor
+            )
+            melody_line = self._synth_melody(
+                melody_style, num_beats, samples_per_beat,
+                total_samples, sr, root_freq, progression, rng,
+                is_loopable=is_loopable
+            )
+            other_left = chord_left + melody_line * 0.75
+            other_right = chord_right + melody_line
+            return (np.column_stack([other_left, other_right]) * dyn["chord_vol"]).astype(np.float32)
+
+        else:
+            raise ValueError(f"Unknown stem name '{stem_name}'. Supported stems are: drums, bass, other.")

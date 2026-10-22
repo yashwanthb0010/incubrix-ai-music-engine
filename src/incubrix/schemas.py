@@ -70,6 +70,8 @@ class StemInfo(BaseModel):
     sample_rate: int = Field(default=48000)
     duration_s: float = Field(...)
     download_url: Optional[str] = None
+    was_regenerated: Optional[bool] = None
+    regenerated_at: Optional[str] = None
 
 
 class QualityMeasurements(BaseModel):
@@ -95,15 +97,22 @@ class StemReconstruction(BaseModel):
     limitations: Optional[str] = None
 
 
+class RegenerateStemRequest(BaseModel):
+    stem_name: str = Field(..., description="Name of the stem to regenerate: 'drums', 'bass', or 'other'")
+    style: Optional[str] = Field(default=None, description="Optional override style for the regenerated stem")
+    seed: Optional[int] = Field(default=None, ge=0, description="Optional seed for deterministic stem regeneration")
+
+
 class DuckingManifest(BaseModel):
     applied: bool = Field(default=False)
     narration_source: Optional[str] = None
-    attenuation_db: float = Field(default=10.0, description="Ducking reduction in dB")
+    attenuation_db: float = Field(default=10.0, description="Ducking reduction in dB (between 8 and 15 dB)")
     speech_detected: bool = Field(default=False)
     speech_duration_s: float = Field(default=0.0)
     attack_ms: float = Field(default=50.0)
     release_ms: float = Field(default=250.0)
     volume_curve_summary: Dict[str, Any] = Field(default_factory=dict)
+    volume_curve: Optional[List[Dict[str, Any]]] = Field(default=None, description="Sampled volume envelope curve with time_s and gain_db")
 
 
 class MusicManifest(BaseModel):
@@ -128,6 +137,7 @@ class MusicManifest(BaseModel):
     actual_duration_s: float
     tempo_bpm: Optional[int] = None
     key: Optional[str] = None
+    beat_and_bar_grid: Optional[Dict[str, Any]] = Field(default=None, description="Sample-accurate beat and bar grid for all stems")
     sections: Optional[List[Dict[str, Any]]] = None
     section_transitions_measured: Optional[List[Dict[str, Any]]] = None
     loopable: bool = False

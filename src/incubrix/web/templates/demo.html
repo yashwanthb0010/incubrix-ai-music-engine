@@ -650,13 +650,57 @@
           div.className = 'audio-block';
           div.innerHTML = `
             <div class="audio-header">
-              <span>Stem: ${name.toUpperCase()}</span>
-              <a href="${url}" download>Download ${name}.wav</a>
+              <span>Stem: <strong>${name.toUpperCase()}</strong></span>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button type="button" class="btn-preset" style="padding:4px 10px; font-size:11px; margin:0;" onclick="regenerateStem('${jobId}', '${name}', this)">
+                  🔄 Regenerate ${name}
+                </button>
+                <a href="${url}" download>Download ${name}.wav</a>
+              </div>
             </div>
-            <audio controls src="${url}"></audio>
+            <audio id="audio_stem_${name}" controls src="${url}?t=${Date.now()}"></audio>
           `;
           stemsContainer.appendChild(div);
         }
+      }
+    }
+
+    async function regenerateStem(jobId, stemName, btn) {
+      const originalText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = "⏳ Regenerating...";
+      try {
+        const res = await fetch(`/api/v1/jobs/${jobId}/stems/${stemName}/regenerate`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ stem_name: stemName })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          btn.innerText = "✅ Done!";
+          setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
+          // Refresh manifest viewer
+          document.getElementById('manifestViewer').innerText = JSON.stringify(data.manifest, null, 2);
+          // Refresh stem audio player
+          const stemAudio = document.getElementById(`audio_stem_${stemName}`);
+          if (stemAudio) {
+            stemAudio.src = `/api/v1/jobs/${jobId}/download/stem_${stemName}.wav?t=${Date.now()}`;
+            stemAudio.play();
+          }
+          // Refresh master mix audio player
+          const mixAudio = document.getElementById('audioMix');
+          if (mixAudio) {
+            mixAudio.src = `/api/v1/jobs/${jobId}/download/mix.wav?t=${Date.now()}`;
+          }
+        } else {
+          alert('Regeneration failed: ' + (data.message || JSON.stringify(data)));
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert('Error regenerating stem: ' + err.message);
+        btn.innerText = originalText;
+        btn.disabled = false;
       }
     }
   </script>

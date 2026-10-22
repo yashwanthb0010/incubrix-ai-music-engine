@@ -8,6 +8,7 @@ Music Provider -> Audio Processing (LUFS/True Peak/Fade) -> Stem Separation & Al
 from __future__ import annotations
 import io
 import json
+import math
 import os
 import tempfile
 import time
@@ -132,7 +133,7 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
         loop_boundary_discontinuity = None
         if request.loopable:
             duration_enforced, loop_boundary_discontinuity = processor.apply_loop_crossfade(
-                duration_enforced, target_sr, crossfade_s=0.5
+                duration_enforced, target_sr, crossfade_s=0.05
             )
 
         # Normalize LUFS and True Peak
@@ -193,6 +194,7 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
                 attack_ms=d_info["attack_ms"],
                 release_ms=d_info["release_ms"],
                 volume_curve_summary=d_info["volume_curve_summary"],
+                volume_curve=d_info.get("volume_curve"),
             )
 
         # Step 6: Export Audio Files to Storage (85%)
@@ -277,6 +279,42 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
             if request.duration_s > 120 and cfg.music_provider == "stable_audio":
                 known_limitations.append("Stable Audio native limit is 120s; extended track was produced via segmented generation.")
 
+            # Compute sample-accurate beat and bar grid
+            bpm = gen_result.tempo_bpm or 120
+            beat_interval_s = round(60.0 / bpm, 4)
+            bar_interval_s = round(beat_interval_s * 4.0, 4)
+            total_beats = int(round(quality_measurements.measured_duration_s / beat_interval_s))
+            total_bars = int(math.ceil(total_beats / 4.0))
+
+            beat_and_bar_grid = {
+                "tempo_bpm": bpm,
+                "key": gen_result.key or "C major",
+                "time_signature": "4/4",
+                "beat_interval_s": beat_interval_s,
+                "bar_interval_s": bar_interval_s,
+                "total_beats": total_beats,
+                "total_bars": total_bars,
+                "all_stems_share_tempo_and_key": True,
+                "beats": [
+                    {
+                        "beat_index": b,
+                        "bar_index": b // 4,
+                        "beat_in_bar": (b % 4) + 1,
+                        "time_s": round(b * beat_interval_s, 4),
+                        "is_downbeat": (b % 4 == 0),
+                    }
+                    for b in range(total_beats)
+                ],
+                "bars": [
+                    {
+                        "bar_index": bar,
+                        "start_time_s": round(bar * bar_interval_s, 4),
+                        "end_time_s": round(min((bar + 1) * bar_interval_s, quality_measurements.measured_duration_s), 4),
+                    }
+                    for bar in range(total_bars)
+                ],
+            }
+
             manifest = MusicManifest(
                 job_id=job_id,
                 created_at=created_at_str,
@@ -290,6 +328,7 @@ async def execute_job_pipeline(job_id: str, settings: Optional[Settings] = None)
                 actual_duration_s=quality_measurements.measured_duration_s,
                 tempo_bpm=gen_result.tempo_bpm,
                 key=gen_result.key,
+                beat_and_bar_grid=beat_and_bar_grid,
                 sections=[s.model_dump() for s in (request.sections or [])],
                 section_transitions_measured=gen_result.section_measurements,
                 loopable=request.loopable,

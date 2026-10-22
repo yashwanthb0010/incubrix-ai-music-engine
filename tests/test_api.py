@@ -423,3 +423,149 @@ def test_18_loopable_audio(client: TestClient):
     assert manifest["loop_boundary_checked"] is True
     assert manifest["loop_max_boundary_discontinuity"] is not None
     assert manifest["loop_max_boundary_discontinuity"] < 0.01
+
+
+# --- 19. Section plan: transitions land on beat and within 0.5s ---
+
+def test_19_section_plan_beat_alignment(client: TestClient):
+    resp = client.post(
+        "/api/v1/music/jobs",
+        json={
+            "prompt": "Electronic EDM festival track",
+            "duration_s": 20.0,
+            "tempo_bpm": 120,
+            "sections": [
+                {"start_s": 0.0, "mood": "calm atmospheric intro"},
+                {"start_s": 8.0, "mood": "energetic build and drop"},
+                {"start_s": 15.0, "mood": "intense climax finish"},
+            ],
+        },
+        headers={"Idempotency-Key": "test_section_plan_beat_alignment"},
+    )
+    job_id = resp.json()["job_id"]
+    wait_for_job_completion(client, job_id)
+
+    manifest = client.get(f"/api/v1/jobs/{job_id}/manifest").json()
+    transitions = manifest.get("section_transitions_measured", [])
+    assert len(transitions) == 3
+
+    for trans in transitions:
+        # Must align within 0.5s of requested start
+        assert trans["aligned_within_0_5s"] is True
+        assert trans["transition_deviation_s"] <= 0.5
+        # Must land on a beat
+        assert trans["lands_on_beat"] is True
+        assert "transition_beat_index" in trans
+
+
+# --- 20. Beat and bar grid in manifest with shared tempo & key ---
+
+def test_20_beat_and_bar_grid_in_manifest(client: TestClient):
+    resp = client.post(
+        "/api/v1/music/jobs",
+        json={"prompt": "Cinematic trailer", "duration_s": 16.0, "tempo_bpm": 120, "key": "D minor"},
+        headers={"Idempotency-Key": "test_beat_and_bar_grid"},
+    )
+    job_id = resp.json()["job_id"]
+    wait_for_job_completion(client, job_id)
+
+    manifest = client.get(f"/api/v1/jobs/{job_id}/manifest").json()
+    grid = manifest.get("beat_and_bar_grid")
+    assert grid is not None
+    assert grid["tempo_bpm"] == 120
+    assert grid["key"] == "D minor"
+    assert grid["time_signature"] == "4/4"
+    assert grid["all_stems_share_tempo_and_key"] is True
+    assert len(grid["beats"]) >= 32
+    assert len(grid["bars"]) >= 8
+    assert grid["beats"][0]["is_downbeat"] is True
+    assert grid["beats"][0]["time_s"] == 0.0
+
+
+# --- 21. Voiceover ducking with 8-15 dB drop and volume curve in manifest ---
+
+def test_21_voiceover_ducking_volume_curve(client: TestClient, monkeypatch):
+    import numpy as np
+    import soundfile as sf
+    from incubrix.queue import pipeline
+
+    # Mock narration audio fetch with 4s of simulated speech
+    async def mock_fetch(url: str, *args, **kwargs):
+        sr = 48000
+        t = np.linspace(0, 8.0, int(8.0 * sr))
+        # Speech active between 1.0s and 5.0s
+        speech = np.sin(2 * np.pi * 300 * t) * 0.7
+        speech[(t < 1.0) | (t > 5.0)] = 0.0
+        return speech, sr
+
+    monkeypatch.setattr(pipeline, "fetch_narration_audio", mock_fetch)
+
+    resp = client.post(
+        "/api/v1/music/jobs",
+        json={"prompt": "Corporate interview background", "duration_s": 10.0, "narration_url": "https://example.com/voice.wav"},
+        headers={"Idempotency-Key": "test_ducking_volume_curve"},
+    )
+    job_id = resp.json()["job_id"]
+    wait_for_job_completion(client, job_id)
+
+    manifest = client.get(f"/api/v1/jobs/{job_id}/manifest").json()
+    ducking = manifest.get("ducking")
+    assert ducking["applied"] is True
+    assert 8.0 <= ducking["attenuation_db"] <= 15.0
+    assert ducking["speech_detected"] is True
+
+    # Volume curve in manifest
+    assert ducking.get("volume_curve") is not None
+    assert len(ducking["volume_curve"]) > 10
+    assert "gain_db" in ducking["volume_curve"][0]
+    assert "time_s" in ducking["volume_curve"][0]
+
+
+# --- 22. Change one part: regenerate one stem without changing others ---
+
+def test_22_regenerate_one_stem_without_changing_others(client: TestClient):
+    resp = client.post(
+        "/api/v1/music/jobs",
+        json={"prompt": "Lo-Fi beat study session", "duration_s": 12.0, "seed": 42},
+        headers={"Idempotency-Key": "test_regenerate_stem_job"},
+    )
+    job_id = resp.json()["job_id"]
+    wait_for_job_completion(client, job_id)
+
+    # 1. Download initial stems and mix
+    initial_drums = client.get(f"/api/v1/jobs/{job_id}/download/stem_drums.wav").content
+    initial_bass = client.get(f"/api/v1/jobs/{job_id}/download/stem_bass.wav").content
+    initial_other = client.get(f"/api/v1/jobs/{job_id}/download/stem_other.wav").content
+    initial_mix = client.get(f"/api/v1/jobs/{job_id}/download/mix.wav").content
+
+    # 2. Regenerate DRUMS stem with a new seed
+    regen_resp = client.post(
+        f"/api/v1/jobs/{job_id}/stems/drums/regenerate",
+        json={"stem_name": "drums", "seed": 9999},
+    )
+    assert regen_resp.status_code == 200
+    data = regen_resp.json()
+    assert data["status"] == "succeeded"
+    assert data["regenerated_stem"] == "drums"
+
+    # 3. Download updated stems and mix
+    new_drums = client.get(f"/api/v1/jobs/{job_id}/download/stem_drums.wav").content
+    new_bass = client.get(f"/api/v1/jobs/{job_id}/download/stem_bass.wav").content
+    new_other = client.get(f"/api/v1/jobs/{job_id}/download/stem_other.wav").content
+    new_mix = client.get(f"/api/v1/jobs/{job_id}/download/mix.wav").content
+
+    # Drums MUST have changed
+    assert initial_drums != new_drums
+
+    # Bass and Other MUST be bit-for-bit IDENTICAL
+    assert initial_bass == new_bass
+    assert initial_other == new_other
+
+    # Mix MUST have updated to reflect new drums
+    assert initial_mix != new_mix
+
+    # Stem reconstruction in manifest must remain valid
+    sr = data["manifest"]["stem_reconstruction"]
+    assert sr["tolerances_met"] is True
+    assert sr["reconstruction_snr_db"] > 25.0
+
