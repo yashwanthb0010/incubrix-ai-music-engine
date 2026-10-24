@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IncuBrix Video Recording Teleprompter & Script</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --gold: #fef08a;
+      --green: #4ade80;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--accent);
+    }
+    .badge {
+      background: #0369a1;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .precheck {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 28px;
+    }
+    .precheck h3 {
+      margin-top: 0;
+      color: var(--accent);
+    }
+    .scene-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .scene-header {
+      background: #1e3a8a;
+      padding: 10px 18px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .scene-body {
+      padding: 18px;
+    }
+    .block-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .actions-box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+    .speech-box {
+      background: #422006;
+      border: 1px solid #ca8a04;
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 14px;
+      font-size: 17px;
+      font-style: italic;
+      color: var(--gold);
+      line-height: 1.5;
+    }
+    .verifies-box {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .btn-print {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>🎬 IncuBrix Video Teleprompter & Recording Script</h1>
+        <div style="color: var(--text-muted); font-size: 14px;">Presenter: Yashwanth B | Assessment 1 | Target: ~7:15 (Max 8:00 unedited)</div>
+      </div>
+      <button class="btn-print" onclick="window.print()">🖨️ Print Cue Sheet</button>
+    </header>
+
+    <div class="precheck">
+      <h3>🔴 2-MINUTE PRE-RECORDING CHECKLIST</h3>
+      <ul>
+        <li><b>Docker Terminal:</b> Confirm <code>docker compose up</code> is actively running.</li>
+        <li><b>Browser Ready:</b> Open Tab 1: <a href="http://localhost:8000/" target="_blank" style="color:var(--accent);">http://localhost:8000/</a> (Studio UI) & Tab 2: <a href="http://localhost:8000/docs" target="_blank" style="color:var(--accent);">http://localhost:8000/docs</a> (Swagger).</li>
+        <li><b>Screen Recorder:</b> In OBS or Windows Game Bar (<b>Win + Alt + R</b>), ensure <b>Desktop Audio is captured</b> so reviewers can hear the music!</li>
+        <li><b>Single Continuous Take:</b> The assessment requires unedited video. Speak naturally at a steady pace.</li>
+      </ul>
+    </div>
+
+    <!-- PART 1 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 1: 0:00 – 0:50 (50 sec)</span>
+        <span>Stack Architecture & One-Command Start</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. Start recording showing your VS Code terminal with <code>docker compose up</code> running.<br>
+          2. Switch to browser tab showing <b>http://localhost:8000/docs</b> (Swagger UI).<br>
+          3. Scroll through the routes, pointing out all endpoints reside strictly under <b>/api/v1/</b>.<br>
+          4. Switch over to the Audio Studio tab at <b>http://localhost:8000/</b>.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "Hello everyone, my name is Yashwanth, presenting the IncuBrix AI Background Music Engine for Video. The entire production stack spins up with a single command using Docker Compose—orchestrating our FastAPI gateway, Redis asynchronous task queue, and MinIO S3-compatible storage. All API endpoints are organized under /api/v1/ with complete OpenAPI 3.1 specifications. Let us now jump into our interactive Audio Studio interface."
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: One-command start (Req 1) & Documented HTTP API /api/v1/ (Req 2).
+        </div>
+      </div>
+    </div>
+
+    <!-- PART 2 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 2: 0:50 – 2:15 (85 sec)</span>
+        <span>Core Music Generation & Broadcast Audio Compliance</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. In the Prompt box, enter: <i>"Uplifting corporate presentation with acoustic guitars and steady beat"</i>.<br>
+          2. Set Duration: <b>30.0s</b> | BPM: <b>120</b> | Key: <b>C Major</b>.<br>
+          3. Click <b>"Generate Music Track"</b>.<br>
+          4. Point out the sub-second generation (&lt; 200ms) and HTTP 202 status.<br>
+          5. <b>Click PLAY</b> and let the music play out loud for 10–12 seconds.<br>
+          6. Scrub to the <b>last 3 seconds (27s to 30s)</b> and listen to the track ending naturally on a musical cadence.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "We will submit a 30-second acoustic corporate track. Notice that the POST request returns HTTP 202 Accepted with a unique job ID and enforces safe idempotency retries. Generation completes in under 200 milliseconds. Listening to the audio, the track is delivered in broadcast 48 kHz stereo, normalized to exact ITU-R BS.1770 -16.0 LUFS with true peak capped at -1.0 dBTP. Listening closely to the final 3 seconds, the track resolves naturally on a bar line with an intentional cadence fade—never a hard cut."
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: Exact length within 0.05s with bar-line fade (Must-Have 1) | 48 kHz, -16 LUFS, &le; -1 dBTP (Must-Have 5) | Async jobs & idempotency (Req 3 & 4).
+        </div>
+      </div>
+    </div>
+
+    <!-- PART 3 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 3: 2:15 – 3:30 (75 sec)</span>
+        <span>Genuine Stems & Mathematical Reconstruction Audit</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. Scroll down to the <b>Stem Mixer</b>.<br>
+          2. Point out the 3 distinct instrument stems: <b>Drums</b>, <b>Bass</b>, and <b>Other</b>.<br>
+          3. <b>Solo Drums</b> and play for 5 seconds (hear drums alone).<br>
+          4. <b>Solo Bass</b> and play for 5 seconds (hear bassline alone).<br>
+          5. <b>Solo Other</b> and play for 5 seconds (hear melody alone).<br>
+          6. Click <b>"View Manifest"</b> and highlight <code>stem_reconstruction.snr_db > 71 dB</code>.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "Next is genuine stem separation. Here we have at least 3 distinct, independently playable stems: Drums, Bass, and Other. When we solo each one, you hear pure isolated instruments, not arbitrary frequency filters. Furthermore, looking at our music manifest, the mathematical sum of these stems reconstructs the master mix with a Signal-to-Noise Ratio exceeding 71 dB and maximum error below 0.00006, proving mathematical identity."
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: Real stems (Must-Have 2) | Mix equals sum of stems (SNR &gt; 71 dB) | Instrumental only, zero vocals (Must-Have 3).
+        </div>
+      </div>
+    </div>
+
+    <!-- PART 4 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 4: 3:30 – 4:45 (75 sec)</span>
+        <span>Section Mood Transitions & Voiceover Narration Ducking</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. Point to the <b>Section Plan</b> (0s Intro, 15s Energetic Build, 25s Finish).<br>
+          2. Play across the 15.0s timestamp to hear the rhythm and crash cymbal land on the exact beat.<br>
+          3. Enable <b>Voiceover Ducking</b> (or select sample voice narration).<br>
+          4. Play <code>mix_ducked.wav</code>: hear music drop 10 dB under voice and smoothly recover in gaps with zero pumping.<br>
+          5. Point to the <code>volume_curve</code> in the manifest.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "Now let us look at section transitions and voiceover ducking. Our section mood changes change energy within 0.5s of boundaries and land precisely on the beat grid. When speech narration is present, our envelope detector attenuates background music by 10 dB under speech with 50ms attack and 180ms hold, recovering smoothly in speech gaps without pumping distortion. The full volume ducking curve is published in the manifest."
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: Section plan beat alignment | Anti-pumping voiceover ducking (8-15 dB drop) | Beat & bar grid in manifest.
+        </div>
+      </div>
+    </div>
+
+    <!-- PART 5 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 5: 4:45 – 5:45 (60 sec)</span>
+        <span>Single-Stem Regeneration & Seamless Looping</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. Click <b>"Regenerate Drums Only"</b>.<br>
+          2. Play the updated track: show that drums groove changed, but bass and melody stems stayed identical.<br>
+          3. Check <b>"Seamless Loop"</b>, generate a 12s cue, and play continuously across the boundary.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "If a creator wants a new drum rhythm while keeping the same melody, we can regenerate just one stem via POST /jobs/{id}/regenerate-stem. The drums are re-synthesized while bass and melody remain 100% bit-for-bit identical. When loopable is checked, the track snaps to integer bar counts and applies boundary crossfading for a seamless loop with zero clicks."
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: Change one part / stem regeneration (Advanced) | Seamless loop with zero clicks (Advanced).
+        </div>
+      </div>
+    </div>
+
+    <!-- PART 6 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 6: 5:45 – 6:45 (60 sec)</span>
+        <span>Hard Cases Tab (Screening Scenarios Resilience)</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. Switch to the <b>"Hard Cases"</b> tab in the UI.<br>
+          2. Run Scenario 2: <i>"calm but aggressive"</i> -> show dynamic contrast and warning.<br>
+          3. Run Scenario 3: <i>"Queen Bohemian Rhapsody with vocals"</i> -> show vocal suppression & copyright warning.<br>
+          4. Run Scenario 6: Non-English prompt -> show translated genre.<br>
+          5. Run Scenario 8: Provider timeout -> show clean JSON error envelope.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "Here is our dedicated Hard Cases tab, built to prove resilience against the 5 screening tests. For contradictory prompts like calm but aggressive, we synthesize dynamic musical contrast with an explicit warning. When asked for real songs or vocals like Queen, the engine suppresses vocals, generates original music to prevent copyright infringement, and links to our commercial clearance in SOURCES.md. And when models fail or time out, the pipeline catches it gracefully and returns a structured JSON error envelope."
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: Safe to publish commercially & SOURCES.md (Must-Have 4) | Screening hard cases handled without silent failures.
+        </div>
+      </div>
+    </div>
+
+    <!-- PART 7 -->
+    <div class="scene-card">
+      <div class="scene-header">
+        <span>PART 7: 6:45 – 7:30 (45 sec)</span>
+        <span>Automated Test Suite & Final Signoff</span>
+      </div>
+      <div class="scene-body">
+        <div class="block-title">🖥️ What to Show & Do on Screen:</div>
+        <div class="actions-box">
+          1. Switch back to PowerShell terminal.<br>
+          2. Run: <code>py -m pytest -v</code>.<br>
+          3. Show tests executing and finishing: <b>59 passed in ~90s</b>.<br>
+          4. Show <code>Assessment1_Yashwanth_B.xlsx</code> file in VS Code.<br>
+          5. Thank the reviewer and stop recording.
+        </div>
+        <div class="block-title">🎙️ What to Say (Read this word-for-word):</div>
+        <div class="speech-box">
+          "Finally, running py -m pytest -v executes our full automated test suite: 59 out of 59 unit, integration, and audio metric tests pass in under 90 seconds completely offline with zero API keys. All metrics, CLAP evaluations, and the completed submission form are in Assessment1_Yashwanth_B.xlsx. Thank you for your time and evaluation!"
+        </div>
+        <div class="verifies-box">
+          ✅ Verifies: 59/59 automated tests passing | 60/60 self-assessed marks claimed | Complete declaration & signoff.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
