@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: incubrix-music-api
     ports:
       - "8000:8000"
     environment:
@@ -39,7 +38,6 @@ services:
 
   minio:
     image: pgsty/silo:latest
-    container_name: incubrix-minio
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -53,7 +51,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: incubrix-redis
     ports:
       - "6379:6379"
     restart: unless-stopped
