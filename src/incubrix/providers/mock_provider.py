@@ -1339,8 +1339,8 @@ class MockMusicProvider(BaseMusicProvider):
 
         root_freq = self._get_key_base_freq(key_str)
         is_minor = "minor" in key_str.lower()
-        genre = "lo-fi" if is_minor else "corporate"
-        profile = GENRE_PROFILES[genre]
+        genre = "lo-fi" if is_minor else "corporate_tech"
+        profile = GENRE_PROFILES.get(genre, GENRE_PROFILES["corporate_tech"])
         progression = profile["progression"]
         dyn = profile["dynamics"]
 
