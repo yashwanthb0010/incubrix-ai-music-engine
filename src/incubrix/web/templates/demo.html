@@ -869,7 +869,7 @@
       const idempotencyKey = 'web_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 
       try {
-        const resp = await fetch('/api/v1/jobs', {
+        const resp = await fetch('/api/v1/music/jobs', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

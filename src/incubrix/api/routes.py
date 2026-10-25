@@ -48,6 +48,12 @@ router = APIRouter()
 # -------------------------------------------------------------
 
 @router.post(
+    "/api/v1/jobs",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
+@router.post(
     "/api/v1/music/jobs",
     response_model=JobAcceptedResponse,
     status_code=status.HTTP_202_ACCEPTED,
