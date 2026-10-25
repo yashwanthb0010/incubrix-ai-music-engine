@@ -636,7 +636,7 @@
               <span>Full Master Mix (48 kHz Broadcast WAV & MP3)</span>
               <a id="mixWavLink" href="#" download>Download WAV</a>
             </div>
-            <audio id="audioMix" controls></audio>
+            <audio id="audioMix" controls preload="metadata"></audio>
           </div>
 
           <!-- Ducked Mix if available -->
@@ -645,7 +645,7 @@
               <span>Voiceover Ducked Mix (Speech Envelope Attenuated -10 dB)</span>
               <a id="duckedWavLink" href="#" download>Download Ducked WAV</a>
             </div>
-            <audio id="audioDucked" controls></audio>
+            <audio id="audioDucked" controls preload="metadata"></audio>
           </div>
 
           <!-- Separated Instrument Stems -->
@@ -993,7 +993,7 @@
                 <a href="${url}" download>Download ${name}.wav</a>
               </div>
             </div>
-            <audio id="audio_stem_${name}" controls src="${url}?t=${Date.now()}"></audio>
+            <audio id="audio_stem_${name}" controls preload="metadata" src="${url}"></audio>
           `;
           stemsContainer.appendChild(div);
         }

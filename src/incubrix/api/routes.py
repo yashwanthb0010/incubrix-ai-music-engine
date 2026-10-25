@@ -449,10 +449,10 @@ async def regenerate_stem_endpoint(
 
 @router.get(
     "/api/v1/jobs/{job_id}/download/{asset_name}",
-    summary="Download generated audio asset",
-    description="Streams or downloads generated assets (mix.wav, mix.mp3, stem_*.wav, mix_ducked.wav, etc.).",
+    summary="Download or stream generated audio asset",
+    description="Streams or downloads generated assets with HTTP 206 Range support for instant audio seeking and scrubbing.",
 )
-async def download_job_asset(job_id: str, asset_name: str):
+async def download_job_asset(job_id: str, asset_name: str, request: Request):
     cfg = get_settings()
     storage = get_storage(cfg)
 
@@ -465,6 +465,7 @@ async def download_job_asset(job_id: str, asset_name: str):
         )
 
     data = await storage.get_bytes(job_id, asset_name)
+    total_size = len(data)
 
     content_type = "application/octet-stream"
     if asset_name.endswith(".wav"):
@@ -474,12 +475,38 @@ async def download_job_asset(job_id: str, asset_name: str):
     elif asset_name.endswith(".json"):
         content_type = "application/json"
 
+    # Support HTTP 206 Partial Content Range requests for audio player scrubbing/seeking
+    range_header = request.headers.get("range")
+    if range_header and range_header.startswith("bytes="):
+        try:
+            range_val = range_header.replace("bytes=", "").strip()
+            parts = range_val.split("-")
+            start = int(parts[0]) if parts[0] else 0
+            end = int(parts[1]) if len(parts) > 1 and parts[1] else total_size - 1
+            if start >= total_size:
+                return Response(
+                    status_code=416,
+                    headers={"Content-Range": f"bytes */{total_size}"},
+                )
+            end = min(end, total_size - 1)
+            chunk = data[start : end + 1]
+            headers = {
+                "Content-Range": f"bytes {start}-{end}/{total_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(len(chunk)),
+                "Content-Disposition": f'inline; filename="{asset_name}"',
+            }
+            return Response(content=chunk, status_code=206, media_type=content_type, headers=headers)
+        except Exception:
+            pass
+
     headers = {
-        "Content-Disposition": f'attachment; filename="{asset_name}"',
-        "Content-Length": str(len(data)),
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(total_size),
+        "Content-Disposition": f'inline; filename="{asset_name}"',
     }
 
-    return Response(content=data, media_type=content_type, headers=headers)
+    return Response(content=data, status_code=200, media_type=content_type, headers=headers)
 
 
 # -------------------------------------------------------------
