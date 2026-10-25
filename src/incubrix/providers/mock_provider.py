@@ -66,10 +66,10 @@ GENRE_PROFILES: Dict[str, Dict[str, Any]] = {
             [0.89, 1.12, 1.34, 1.78],   # G (VII)
         ],
         "bass_style": "soft_upright",
-        "drum_style": "none",
+        "drum_style": "ballad_soft_percussion",
         "melody_style": "piano_solo",
         "fx": {"vinyl_crackle": 0.0, "tape_wobble": 0.0, "reverb_mix": 0.45, "sidechain": 0.0},
-        "dynamics": {"drum_vol": 0.0, "bass_vol": 0.40, "chord_vol": 0.65, "melody_vol": 0.45},
+        "dynamics": {"drum_vol": 0.35, "bass_vol": 0.45, "chord_vol": 0.60, "melody_vol": 0.40},
     },
     "electronic_edm": {
         "display_name": "Electronic / Club EDM",
@@ -168,10 +168,10 @@ GENRE_PROFILES: Dict[str, Dict[str, Any]] = {
             [1.0, 1.33, 1.50, 2.00],    # F sustained
         ],
         "bass_style": "deep_drone",
-        "drum_style": "none",
+        "drum_style": "ambient_pulse",
         "melody_style": "singing_bowl",
         "fx": {"vinyl_crackle": 0.0, "tape_wobble": 0.0, "reverb_mix": 0.75, "sidechain": 0.0},
-        "dynamics": {"drum_vol": 0.0, "bass_vol": 0.35, "chord_vol": 0.65, "melody_vol": 0.25},
+        "dynamics": {"drum_vol": 0.30, "bass_vol": 0.40, "chord_vol": 0.60, "melody_vol": 0.30},
     },
     "jazz_lounge": {
         "display_name": "Smooth Jazz / Lounge",
@@ -503,7 +503,7 @@ class MockMusicProvider(BaseMusicProvider):
                      sections: list, beat_interval_s: float, is_loopable: bool = False) -> np.ndarray:
         drums = np.zeros(total_samples, dtype=np.float32)
         if drum_style == "none":
-            return drums
+            drum_style = "ballad_soft_percussion"
 
         total_dur_s = float(total_samples) / sr
         # Calculate cadence downbeat for intentional ending hit
@@ -559,8 +559,45 @@ class MockMusicProvider(BaseMusicProvider):
                 crash = (rng.rand(cl) * 2 - 1) * np.exp(-ct * 3.2) * 0.45
                 drums[bs:bs + cl] += crash
 
+            # --- 0. Soft Ballad / Piano Percussion ---
+            if drum_style in ("ballad_soft_percussion", "soft_ballad"):
+                # Warm gentle sub kick on beat 0
+                if b % 4 == 0:
+                    kl = min(int(0.20 * sr), total_samples - bs)
+                    kt = np.linspace(0, 0.20, kl)
+                    drums[bs:bs + kl] += np.sin(2 * np.pi * 52 * kt) * np.exp(-kt * 18) * 0.45
+                # Gentle rimshot / brush click on beat 2
+                if b % 4 == 2:
+                    sl = min(int(0.08 * sr), total_samples - bs)
+                    st = np.linspace(0, 0.08, sl)
+                    drums[bs:bs + sl] += (rng.rand(sl) * 2 - 1) * np.exp(-st * 40) * 0.22
+                # Subtle acoustic brush shaker
+                for sub, offset_pct in [(0, 0.0), (1, 0.5)]:
+                    hi = bs + int(samples_per_beat * offset_pct)
+                    if hi < total_samples:
+                        hl = min(int(0.03 * sr), total_samples - hi)
+                        ht = np.linspace(0, 0.03, hl)
+                        drums[hi:hi + hl] += (rng.rand(hl) * 2 - 1) * np.exp(-ht * 85) * 0.08
+
+            # --- 0b. Ambient Meditation Pulse ---
+            elif drum_style in ("ambient_pulse", "ambient_meditation_pulse"):
+                # Ethereal low singing bowl / gong pulse on bar downbeats (every 4 beats)
+                if b % 4 == 0:
+                    gl = min(int(1.5 * sr), total_samples - bs)
+                    gt = np.linspace(0, 1.5, gl)
+                    gong = np.sin(2 * np.pi * (65 + 10 * np.exp(-gt * 3)) * gt) * np.exp(-gt * 2.2) * 0.50
+                    gong += np.sin(2 * np.pi * 130 * gt) * np.exp(-gt * 3.0) * 0.25
+                    drums[bs:bs + gl] += gong
+                # Gentle chime shimmer on beat 2
+                if b % 4 == 2:
+                    wl = min(int(0.5 * sr), total_samples - bs)
+                    wt = np.linspace(0, 0.5, wl)
+                    chime = np.sin(2 * np.pi * 2400 * wt) * np.exp(-wt * 12) * 0.10
+                    chime += (rng.rand(wl) * 2 - 1) * np.exp(-wt * 45) * 0.06
+                    drums[bs:bs + wl] += chime
+
             # --- 1. Lo-Fi Hip-Hop ---
-            if drum_style == "lofi_boombap":
+            elif drum_style == "lofi_boombap":
                 # Swung boom-bap kick on 0 and 2.5
                 if b % 4 == 0 or (b % 4 == 2 and rng.rand() > 0.4):
                     kl = min(int(0.18 * sr), total_samples - bs)
